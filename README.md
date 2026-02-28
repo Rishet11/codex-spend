@@ -8,7 +8,7 @@
 
 ## 🚀 Features
 
-- **Privacy First:** Never sends your data anywhere. Runs completely offline on `http://127.0.0.1`.
+- **Privacy First:** Never sends your data anywhere. Runs locally on `http://127.0.0.1` (requires internet access for fonts and charts).
 - **Accurate Billing:** Understands the nuanced OpenAI billing model, including the **90% discount on cached prompts** and the fact that reasoning tokens are billed as output tokens.
 - **Interactive Charts:** Beautiful `Chart.js` visualizations for daily spend and model breakdowns.
 - **Actionable Insights:** Get personalized recommendations based on your usage patterns (e.g., how to maximize cache hits during marathon debugging sessions).
@@ -52,3 +52,12 @@ The dashboard uses the official OpenAI API per-token pricing (Standard tier). He
 ## 📝 License
 
 MIT
+
+---
+
+## 👨‍💻 Author
+
+**Rishet Mehra**
+- **GitHub:** [@Rishet11](https://github.com/Rishet11)
+- **LinkedIn:** [Rishet Mehra](https://www.linkedin.com/in/rishetmehra/)
+- **Email:** rishetmehra11@gmail.com
