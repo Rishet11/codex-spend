@@ -41,9 +41,9 @@ When you run `codex-spend`, the tool:
 ## 💰 Understanding Codex Pricing
 
 The dashboard uses the official OpenAI API per-token pricing (Standard tier). Here are a few things to keep in mind:
-- **Prompt Caching:** You get a **90% discount** on input tokens when Codex re-reads context it has seen recently. The dashboard splits this out and highlights your savings!
-- **Reasoning Tokens:** High-effort reasoning models generate internal "thinking" tokens. These consume your context window and are billed identically to standard output tokens. They are tracked as a subset of your output tokens in the dashboard.
-- **API Mode:** This tool calculates spend based on individual API token costs. If you are using Codex via a ChatGPT Plus/Pro subscription, your usage is actually tracked via a rolling time-based limit (and flexible credits) rather than direct per-token billing, but this dashboard still serves as an excellent gauge of your "virtual" consumption!
+- **Prompt Caching:** You get a **90% discount** on input tokens when Codex re-reads context it has seen recently. The dashboard splits this out and highlights your savings! ([Source](https://openai.com/api/pricing/))
+- **Reasoning Tokens:** High-effort reasoning models generate internal "thinking" tokens. These consume your context window and are billed identically to standard output tokens. They are tracked as a subset of your output tokens in the dashboard. ([Source](https://developers.openai.com/codex/models))
+- **API Mode:** This tool calculates spend based on individual API token costs. If you are using Codex via a ChatGPT Plus/Pro subscription, your usage is actually tracked via a rolling time-based limit (and flexible credits) rather than direct per-token billing, but this dashboard still serves as an excellent gauge of your "virtual" consumption! ([Source](https://help.openai.com/en/articles/12642688-using-credits-for-flexible-usage-in-chatgpt-freegopluspro-sora))
 
 ## 🔐 Privacy
 
