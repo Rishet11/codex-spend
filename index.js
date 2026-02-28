@@ -40,16 +40,78 @@ const server = app.listen(port, '127.0.0.1', async () => {
   try {
     const { parseAllSessions } = require('./src/parser');
     const data = await parseAllSessions();
-    if (data && data.totals) {
+    if (data && data.sessions && data.sessions.length > 0) {
+      console.log('\\n==========================================================================================================================');
+      console.log('       💰 Codex Spend Summary (Recent Sessions)');
+      console.log('==========================================================================================================================');
+      
+      const colTitle = 28;
+      const colDate = 10;
+      const colModel = 15;
+      const colReasoning = 9;
+      const colTokens = 12;
+      const colCost = 8;
+      
+      const headerSep = '='.repeat(87);
+
+      const header = 
+        'Title'.padEnd(colTitle) + ' | ' +
+        'Date'.padEnd(colDate) + ' | ' +
+        'Model'.padEnd(colModel) + ' | ' +
+        'Reasoning'.padEnd(colReasoning) + ' | ' +
+        'Tokens'.padEnd(colTokens) + ' | ' +
+        'Cost'.padStart(colCost);
+      
+      console.log(header);
+      console.log('-'.repeat(header.length));
+      
+      const recent = data.sessions.slice(-10).reverse(); // show last 10
+      for (const s of recent) {
+        const title = s.firstPrompt.length > colTitle ? s.firstPrompt.substring(0, colTitle - 3) + '...' : s.firstPrompt.padEnd(colTitle);
+        // format date as DD MM YY
+        const dparts = s.date.split('-');
+        const dateStr = (dparts.length === 3 ? `${dparts[2]} ${dparts[1]} ${dparts[0].slice(2)}` : s.date).padEnd(colDate);
+        
+        const model = s.model.length > colModel ? s.model.substring(0, colModel) : s.model.padEnd(colModel);
+        
+        let rsn = s.reasoningLevel || "none";
+        if (rsn === "xhigh") rsn = "Very High";
+        else rsn = rsn.charAt(0).toUpperCase() + rsn.slice(1);
+        const reasoning = rsn.padEnd(colReasoning);
+        
+        const formatK = (n) => n >= 1_000_000 ? (n/1_000_000).toFixed(1) + 'm' : (n >= 1000 ? (n/1000).toFixed(0) + 'k' : n.toString());
+        const tokensStr = formatK(s.totalTokens).padEnd(colTokens);
+        
+        let costStr;
+        if (s.cost === 0 && data.totals.hasUnknownPricing) {
+          costStr = " N/A".padStart(colCost);
+        } else if (s.cost > 0 && s.cost < 0.01) {
+          costStr = "< $0.01".padStart(colCost);
+        } else {
+          costStr = ('$' + s.cost.toFixed(2)).padStart(colCost);
+        }
+
+        console.log(`${title} | ${dateStr} | ${model} | ${reasoning} | ${tokensStr} | ${costStr}`);
+      }
+      
       const t = data.totals;
-      console.log('\n=======================================');
-      console.log('       💰 Codex Spend Summary');
-      console.log('=======================================');
-      console.log(`Tokens Used : ${(t.totalTokens / 1_000_000).toFixed(1)}M`);
-      console.log(`Cache Hit   : ${((t.cacheHitRate || 0) * 100).toFixed(1)}%`);
-      console.log(`Reasoning   : ${(t.totalReasoningTokens > 1_000_000) ? (t.totalReasoningTokens / 1_000_000).toFixed(1) + 'M' : (t.totalReasoningTokens / 1000).toFixed(1) + 'K'} tokens`);
-      console.log(`Est. Cost   : $${(t.totalCost || 0).toFixed(2)}`);
-      console.log('=======================================\n');
+      console.log(headerSep);
+      
+      const inM = (t.totalInputTokens / 1_000_000).toFixed(1);
+      const cacheM = (t.totalCacheReadTokens / 1_000_000).toFixed(1);
+      const rsnM = (t.totalReasoningTokens / 1_000_000).toFixed(1);
+      const outM = (t.totalOutputTokens / 1_000_000).toFixed(1);
+      
+      const cIn = `\\x1b[38;2;99;102;241m${inM}M in\\x1b[0m`;
+      const cCache = `\\x1b[38;2;245;158;11m${cacheM}M cache\\x1b[0m`;
+      const cRsn = `\\x1b[38;2;168;85;247m${rsnM}M rsn\\x1b[0m`;
+      const cOut = `\\x1b[38;2;20;184;166m${outM}M out\\x1b[0m`;
+
+      console.log(`Totals: ${(t.totalTokens / 1_000_000).toFixed(1)}M Tokens (${cIn} / ${cCache} / ${cRsn} / ${cOut}) | Cache Hit: ${((t.cacheHitRate || 0) * 100).toFixed(0)}% | Est. Cost: $${(t.totalCost || 0).toFixed(2)}`);
+      if (t.hasUnknownPricing) {
+        console.log('⚠️ WARNING: Some models have unknown pricing.');
+      }
+      console.log(headerSep + '\\n');
     }
   } catch (err) {
     // Ignore parsing errors on boot, the UI will surface them
