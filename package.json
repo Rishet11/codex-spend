@@ -1,11 +1,16 @@
 {
   "name": "codex-spend",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "See where your OpenAI Codex tokens go. One command, zero setup.",
   "main": "index.js",
   "bin": {
-    "codex-spend": "./index.js"
+    "codex-spend": "index.js"
   },
+  "files": [
+    "index.js",
+    "src/",
+    "README.md"
+  ],
   "scripts": {
     "start": "node index.js"
   },
@@ -15,8 +20,18 @@
     "tokens",
     "usage",
     "dashboard",
-    "analytics"
+    "analytics",
+    "cli"
   ],
+  "author": "Rishet Mehra <rishet11>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rishet11/codex-spend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Rishet11/codex-spend/issues"
+  },
+  "homepage": "https://github.com/Rishet11/codex-spend#readme",
   "license": "MIT",
   "engines": {
     "node": ">=16"
