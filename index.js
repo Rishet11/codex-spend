@@ -65,7 +65,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
       console.log(header);
       console.log('-'.repeat(header.length));
       
-      const recent = data.sessions.slice(-10).reverse(); // show last 10
+      const recent = [...data.sessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 10).reverse(); // show last 10
       for (const s of recent) {
         const title = s.firstPrompt.length > colTitle ? s.firstPrompt.substring(0, colTitle - 3) + '...' : s.firstPrompt.padEnd(colTitle);
         // format date as DD MM YY
@@ -75,7 +75,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
         const model = s.model.length > colModel ? s.model.substring(0, colModel) : s.model.padEnd(colModel);
         
         let rsn = s.reasoningLevel || "none";
-        if (rsn === "xhigh") rsn = "Very High";
+        if (rsn === "very_high") rsn = "Very High";
         else rsn = rsn.charAt(0).toUpperCase() + rsn.slice(1);
         const reasoning = rsn.padEnd(colReasoning);
         
@@ -97,15 +97,15 @@ const server = app.listen(port, '127.0.0.1', async () => {
       const t = data.totals;
       console.log(headerSep);
       
-      const inM = (t.totalInputTokens / 1_000_000).toFixed(1);
+      const inM = (Math.max(0, t.totalInputTokens - (t.totalCacheReadTokens || 0)) / 1_000_000).toFixed(1);
       const cacheM = (t.totalCacheReadTokens / 1_000_000).toFixed(1);
       const rsnM = (t.totalReasoningTokens / 1_000_000).toFixed(1);
       const outM = (t.totalOutputTokens / 1_000_000).toFixed(1);
       
-      const cIn = `\\x1b[38;2;99;102;241m${inM}M in\\x1b[0m`;
-      const cCache = `\\x1b[38;2;245;158;11m${cacheM}M cache\\x1b[0m`;
-      const cRsn = `\\x1b[38;2;168;85;247m${rsnM}M rsn\\x1b[0m`;
-      const cOut = `\\x1b[38;2;20;184;166m${outM}M out\\x1b[0m`;
+      const cIn = `\x1b[38;2;99;102;241m${inM}M uncached in\x1b[0m`;
+      const cCache = `\x1b[38;2;245;158;11m${cacheM}M cache\x1b[0m`;
+      const cRsn = `\x1b[38;2;168;85;247m${rsnM}M rsn\x1b[0m`;
+      const cOut = `\x1b[38;2;20;184;166m${outM}M out\x1b[0m`;
 
       console.log(`Totals: ${(t.totalTokens / 1_000_000).toFixed(1)}M Tokens (${cIn} / ${cCache} / ${cRsn} / ${cOut}) | Cache Hit: ${((t.cacheHitRate || 0) * 100).toFixed(0)}% | Est. Cost: $${(t.totalCost || 0).toFixed(2)}`);
       if (t.hasUnknownPricing) {
