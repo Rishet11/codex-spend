@@ -11,42 +11,36 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #F8F9FC;
-    --bg-mesh-1: #EEF0FF;
-    --bg-mesh-2: #F0FDFA;
+    --bg: #F8FAFC;
     --white: #FFFFFF;
-    --text: #0F172A;
+    --text: #1E293B;
     --text-secondary: #475569;
     --text-tertiary: #94A3B8;
-    --border: rgba(0,0,0,0.06);
-    --border-strong: rgba(0,0,0,0.1);
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
 
-    --indigo: #6366F1;
-    --violet: #8B5CF6;
-    --purple: #A855F7;
-    --teal: #14B8A6;
-    --cyan: #06B6D4;
-    --emerald: #10B981;
-    --amber: #F59E0B;
-    --orange: #F97316;
-    --rose: #F43F5E;
-    --blue: #3B82F6;
+    /* Professional Palette */
+    --indigo: #4F46E5;
+    --violet: #7C3AED;
+    --purple: #9333EA;
+    --teal: #0D9488;
+    --cyan: #0891B2;
+    --emerald: #059669;
+    --amber: #D97706;
+    --orange: #EA580C;
+    --rose: #E11D48;
+    --blue: #2563EB;
 
-    --gradient-main: linear-gradient(135deg, #6366F1, #8B5CF6, #A855F7);
-    --gradient-teal: linear-gradient(135deg, #14B8A6, #06B6D4);
-    --gradient-warm: linear-gradient(135deg, #F59E0B, #F97316);
-    --gradient-rose: linear-gradient(135deg, #F43F5E, #EC4899);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    /* Subtle borders instead of heavy shadows */
+    --card-shadow: 0 0 0 1px var(--border);
+    --card-shadow-hover: 0 0 0 1px var(--border-strong), var(--shadow-sm);
 
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
-    --shadow-glow: 0 0 40px rgba(99,102,241,0.15);
-
-    --radius: 16px;
-    --radius-sm: 10px;
-    --radius-xs: 6px;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 4px;
     --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
   }
 
   body {
@@ -58,16 +52,7 @@
     overflow-x: hidden;
   }
 
-  /* Mesh gradient background */
-  body::before {
-    content: '';
-    position: fixed; top: 0; left: 0; right: 0; height: 600px;
-    background:
-      radial-gradient(ellipse 80% 60% at 10% 0%, rgba(99,102,241,0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 90% 10%, rgba(139,92,246,0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 50% 20%, rgba(20,184,166,0.06) 0%, transparent 50%);
-    pointer-events: none; z-index: 0;
-  }
+  body::before { display: none; }
 
   /* Loading */
   .loading {
@@ -86,16 +71,9 @@
   .container { max-width: 1200px; margin: 0 auto; padding: 40px 28px 60px; position: relative; z-index: 1; }
 
   /* Fade-in animation */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate { animation: fadeUp 0.5s ease-out both; }
-  .delay-1 { animation-delay: 0.05s; }
-  .delay-2 { animation-delay: 0.1s; }
-  .delay-3 { animation-delay: 0.15s; }
-  .delay-4 { animation-delay: 0.2s; }
-  .delay-5 { animation-delay: 0.25s; }
+  /* Removed entry animations for faster feel */
+  .animate { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .delay-1, .delay-2, .delay-3, .delay-4, .delay-5 { animation-delay: 0s !important; }
 
   /* ---- HEADER ---- */
   .header {
@@ -104,13 +82,12 @@
   }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .logo-mark {
-    width: 40px; height: 40px; border-radius: 12px;
-    background: var(--gradient-main);
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--indigo);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(99,102,241,0.3);
   }
   .logo-mark svg { width: 22px; height: 22px; }
-  .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .header h1 { font-size: 20px; font-weight: 700; color: var(--text); }
   .header-right { display: flex; align-items: center; gap: 14px; }
   .date-range {
     color: var(--text-tertiary); font-size: 13px; font-weight: 500;
@@ -138,13 +115,12 @@
   @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
 
   .stat-card {
-    background: var(--white); border-radius: var(--radius);
-    padding: 24px; position: relative;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s, transform 0.2s;
+    background: var(--white); border-radius: var(--radius-sm);
+    padding: 20px; position: relative;
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.15s;
   }
-  .stat-card:hover { box-shadow: var(--shadow-md); }
+  .stat-card:hover { box-shadow: var(--card-shadow-hover); }
   .stat-card .accent-bar {
     position: absolute; top: 0; left: 0; right: 0; height: 3px;
   }
@@ -250,12 +226,11 @@
   .insights-section { margin-bottom: 32px; }
   .insight-card {
     background: var(--white); border-radius: var(--radius-sm);
-    padding: 14px 20px; margin-bottom: 8px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-    cursor: pointer; transition: box-shadow 0.2s;
+    padding: 12px 16px; margin-bottom: 8px;
+    box-shadow: var(--card-shadow);
+    cursor: pointer; transition: box-shadow 0.15s;
   }
-  .insight-card:hover { box-shadow: var(--shadow-md); }
+  .insight-card:hover { box-shadow: var(--card-shadow-hover); }
   .insight-top {
     display: flex; align-items: center; gap: 12px;
   }
@@ -270,9 +245,9 @@
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; font-size: 14px;
   }
-  .insight-card.warning .insight-indicator { background: linear-gradient(135deg, #FEF3C7, #FDE68A); }
-  .insight-card.info .insight-indicator { background: linear-gradient(135deg, #E0E7FF, #C7D2FE); }
-  .insight-card.neutral .insight-indicator { background: linear-gradient(135deg, #F1F5F9, #E2E8F0); }
+  .insight-card.warning .insight-indicator { background: #FEF3C7; color: #92400E; }
+  .insight-card.info .insight-indicator { background: #E0E7FF; color: #3730A3; }
+  .insight-card.neutral .insight-indicator { background: #F1F5F9; color: #475569; }
   .insight-title { font-size: 14px; font-weight: 700; line-height: 1.4; }
   .insight-oneliner { font-size: 13px; color: var(--text-secondary); margin-left: auto; white-space: nowrap; font-weight: 500; }
   .insight-expand {
@@ -297,9 +272,9 @@
   @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
 
   .chart-card {
-    background: var(--white); border-radius: var(--radius);
-    padding: 24px; border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    background: var(--white); border-radius: var(--radius-sm);
+    padding: 20px;
+    box-shadow: var(--card-shadow);
     height: 380px; display: flex; flex-direction: column;
   }
   .chart-card h3 {
@@ -317,14 +292,13 @@
   /* ---- TOP PROMPTS ---- */
   .top-prompts { margin-bottom: 32px; }
   .prompts-card {
-    background: var(--white); border-radius: var(--radius);
-    border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow);
     overflow: hidden;
   }
   .prompt-row {
     display: grid; grid-template-columns: 36px 1fr auto;
     gap: 14px; padding: 16px 24px; align-items: start;
-    border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background 0.15s;
   }
   .prompt-row:last-child { border-bottom: none; }
@@ -334,9 +308,9 @@
     background: var(--bg); display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 700; color: var(--text-secondary);
   }
-  .prompt-row:nth-child(1) .prompt-rank { background: var(--gradient-main); color: white; }
-  .prompt-row:nth-child(2) .prompt-rank { background: var(--gradient-teal); color: white; }
-  .prompt-row:nth-child(3) .prompt-rank { background: var(--gradient-warm); color: white; }
+  .prompt-row:nth-child(1) .prompt-rank { background: #F1F5F9; color: var(--text); }
+  .prompt-row:nth-child(2) .prompt-rank { background: #F8FAFC; color: var(--text-secondary); }
+  .prompt-row:nth-child(3) .prompt-rank { background: #F8FAFC; color: var(--text-secondary); }
   .prompt-text {
     font-size: 14px; font-weight: 500; line-height: 1.5;
     display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
@@ -377,10 +351,10 @@
   .drawer-prompt-row {
     display: grid; grid-template-columns: 24px 1fr auto;
     gap: 10px; padding: 10px 14px; align-items: start;
-    background: white; border: 1px solid var(--border); border-radius: 10px;
-    cursor: pointer; transition: box-shadow 0.15s;
+    background: white; border: 1px solid var(--border); border-radius: var(--radius-xs);
+    cursor: pointer; transition: border-color 0.15s;
   }
-  .drawer-prompt-row:hover { box-shadow: var(--shadow-md); }
+  .drawer-prompt-row:hover { border-color: var(--border-strong); }
   .drawer-rank {
     width: 20px; height: 20px; border-radius: 6px;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
@@ -393,8 +367,8 @@
   }
   .drawer-prompt-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
   .tool-chip {
-    background: var(--bg); border: 1px solid var(--border-strong);
-    padding: 1px 7px; border-radius: 6px; font-size: 10px; font-weight: 600;
+    background: #F1F5F9; border: 1px solid var(--border);
+    padding: 1px 7px; border-radius: var(--radius-xs); font-size: 10px; font-weight: 600;
     color: var(--text-secondary); white-space: nowrap;
   }
   .drawer-tokens { text-align: right; white-space: nowrap; }
@@ -410,27 +384,27 @@
   }
   .session-search {
     background: var(--white); border: 1px solid var(--border);
-    color: var(--text); padding: 9px 16px; border-radius: 10px;
-    font-size: 14px; font-weight: 500; width: 300px; outline: none;
-    font-family: var(--font); transition: all 0.2s;
+    color: var(--text); padding: 8px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; width: 300px; outline: none;
+    font-family: var(--font); transition: all 0.15s;
   }
   .session-search::placeholder { color: var(--text-tertiary); }
-  .session-search:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .session-search:focus { border-color: var(--indigo); outline: 2px solid rgba(79, 70, 229, 0.1); }
   .session-count { color: var(--text-tertiary); font-size: 13px; font-weight: 600; }
 
   .sessions-card {
-    background: var(--white); border-radius: var(--radius);
-    border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow);
     overflow: visible;
   }
   .sessions-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .sessions-table th {
-    text-align: left; padding: 12px 16px;
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.6px; color: var(--text-tertiary);
-    border-bottom: 1px solid var(--border);
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-tertiary);
+    border-bottom: 2px solid var(--border);
     cursor: pointer; user-select: none; white-space: nowrap;
-    background: #FAFBFC;
+    background: #F8FAFC;
   }
   .sessions-table th:hover { color: var(--text-secondary); }
   .sessions-table th.sorted { color: var(--indigo); }
@@ -455,12 +429,12 @@
     transition: box-shadow 0.15s;
   }
   .model-badge:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
-  /* Contrast-corrected badge colors (WCAG AA compliant) */
-  .model-codex-5-3 { background: #EEF2FF; color: #3730A3; }
-  .model-codex-5-2 { background: #ECFDF5; color: #047857; }
-  .model-codex-max { background: #FFFBEB; color: #92400E; }
-  .model-codex-mini { background: #FDF2F8; color: #9D174D; }
-  .model-unknown { background: #F1F5F9; color: #475569; }
+  /* Professional badge colors */
+  .model-codex-5-3 { background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; }
+  .model-codex-5-2 { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+  .model-codex-max { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+  .model-codex-mini { background: #FDF2F8; color: #9D174D; border: 1px solid #FBCFE8; }
+  .model-unknown { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
   .model-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
   .model-codex-5-3 .model-dot { background: #4F46E5; }
   .model-codex-5-2 .model-dot { background: #10B981; }
@@ -560,10 +534,9 @@
     text-align: center; margin-bottom: 36px; padding: 0 20px;
   }
   .hero-title {
-    font-size: 38px; font-weight: 800; letter-spacing: -1.5px;
-    background: var(--gradient-main); -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent; background-clip: text;
-    margin-bottom: 10px; line-height: 1.3;
+    font-size: 32px; font-weight: 700; letter-spacing: -1px;
+    color: var(--text);
+    margin-bottom: 10px; line-height: 1.2;
   }
   .hero-subtitle {
     font-size: 15px; color: var(--text-secondary); font-weight: 500;
@@ -581,12 +554,12 @@
 <div id="app" class="container" style="display:none">
 
   <!-- Privacy notice -->
-  <div class="privacy-notice animate">
+  <div class="privacy-notice">
     &#128274; All data stays on your machine. Nothing is sent anywhere.
   </div>
 
   <!-- Header -->
-  <div class="header animate">
+  <div class="header">
     <div class="header-left">
       <div class="logo-mark">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -603,7 +576,7 @@
   </div>
 
   <!-- Value proposition -->
-  <div class="hero-section animate delay-1">
+  <div class="hero-section">
     <h2 class="hero-title">Your OpenAI Codex usage, visualized.</h2>
     <p class="hero-subtitle">See where your tokens actually go.</p>
   </div>
@@ -617,8 +590,8 @@
 
   <!-- Insights -->
   <div id="insightsSection" class="insights-section" style="display:none">
-    <div class="section-header animate">
-      <div class="section-icon" style="background:linear-gradient(135deg,#FEF3C7,#FDE68A)">
+    <div class="section-header">
+      <div class="section-icon" style="background:#FEF3C7">
         <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"><path d="M12 2a7 7 0 0 1 4 12.75V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.25A7 7 0 0 1 12 2z"/><path d="M9 21h6"/></svg>
       </div>
       <div class="section-title">Insights</div>
@@ -627,7 +600,7 @@
   </div>
 
   <!-- Charts -->
-  <div class="charts-grid animate delay-3">
+  <div class="charts-grid">
     <div class="chart-card">
       <h3 class="has-tooltip has-tooltip-below" style="display:inline-block">Tokens per Day<div class="tooltip">How many tokens you used each day. Indigo = fresh input + cache writes (full price), amber = cache reads (10x cheaper), purple = reasoning logic, teal = Codex output.</div></h3>
       <canvas id="dailyChart"></canvas>
@@ -645,15 +618,15 @@
     </div>
   </div>
 
-  <div class="text-center mt-6 text-sm text-gray-500 animate delay-4">
+  <div class="text-center mt-6 text-sm text-gray-500">
     <p>Costs estimated using <a href="https://openai.com/api/pricing/" target="_blank" style="color:var(--text); text-decoration:underline; text-underline-offset:2px">official OpenAI Standard API rates</a>.</p>
     <p style="margin-top:4px">Includes the <a href="https://openai.com/api/pricing/" target="_blank" style="color:var(--amber); text-decoration:underline; text-underline-offset:2px">90% prompt caching discount</a> and bills <a href="https://developers.openai.com/codex/models" target="_blank" style="color:var(--purple); text-decoration:underline; text-underline-offset:2px">reasoning tokens</a> as output.</p>
   </div>
 
   <!-- Projects -->
-  <div class="top-prompts animate delay-3">
+  <div class="top-prompts">
     <div class="section-header">
-      <div class="section-icon" style="background:linear-gradient(135deg,#FEF08A,#FDE047)">
+      <div class="section-icon" style="background:#FEF9C3">
         <svg viewBox="0 0 24 24" fill="none" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </div>
       <div class="section-title">Projects Breakdown</div>
@@ -675,9 +648,9 @@
   </div>
 
   <!-- Most Expensive Prompts -->
-  <div class="top-prompts animate delay-4">
+  <div class="top-prompts">
     <div class="section-header">
-      <div class="section-icon" style="background:linear-gradient(135deg,#E0E7FF,#C7D2FE)">
+      <div class="section-icon" style="background:#E0E7FF">
         <svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
       </div>
       <div class="section-title has-tooltip has-tooltip-below" style="display:inline-flex">Most Expensive Prompts<div class="tooltip">Your top 20 individual messages ranked by how many tokens they used. Short vague messages like "Yes" often rank highest because they trigger long chains of tool calls where Claude tries to figure out what you meant.</div></div>
@@ -698,9 +671,9 @@
   </div>
 
   <!-- All Sessions -->
-  <div class="sessions-section animate delay-5">
+  <div class="sessions-section">
     <div class="section-header">
-      <div class="section-icon" style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5)">
+      <div class="section-icon" style="background:#ECFDF5">
         <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
       </div>
       <div class="section-title">All Sessions</div>
