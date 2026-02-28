@@ -63,10 +63,54 @@ async function parseJSONLFile(filePath) {
   return lines;
 }
 
+// Codex IDEs often inject massive context blocks before the actual user prompt
+// e.g. "# Context from my IDE setup: ... ## My request for Codex: [Actual Prompt]"
+// This function strips that out for a much cleaner dashboard UI
+function cleanPrompt(text) {
+  if (!text) return "(No Prompt)";
+  
+  // Look for the standard Codex IDE request delimiter
+  const splitIdx = text.lastIndexOf("## My request for Codex:");
+  if (splitIdx !== -1) {
+    const extracted = text.substring(splitIdx + "## My request for Codex:".length).trim();
+    if (extracted) return extracted;
+  }
+  
+  return text.trim();
+}
+
+function normalizeReasoningLevel(level) {
+  if (level === null || level === undefined) return null;
+
+  if (typeof level === 'number') {
+    if (level <= 1) return 'low';
+    if (level === 2) return 'medium';
+    if (level === 3) return 'high';
+    return 'very_high';
+  }
+
+  const raw = String(level).trim().toLowerCase();
+  if (!raw) return null;
+
+  if (raw === 'low' || raw === '1') return 'low';
+  if (raw === 'med' || raw === 'medium' || raw === '2') return 'medium';
+  if (raw === 'high' || raw === '3') return 'high';
+  if (raw === 'very high' || raw === 'very_high' || raw === 'veryhigh' || raw === '4') return 'very_high';
+
+  return null;
+}
+
+function wordCount(text) {
+  if (!text || typeof text !== 'string') return 0;
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  return words.length;
+}
+
 function extractSessionData(entries) {
   const queries = [];
   let pendingPrompt = null;
   let continuations = 0;
+  let maxRequestInputForPrompt = 0;
   
   let baselineTotalInput = 0;
   let baselineTotalOutput = 0;
@@ -90,7 +134,7 @@ function extractSessionData(entries) {
     }
     
     if (row.type === "turn_context" && row.payload?.collaboration_mode?.settings?.reasoning_effort) {
-      currentReasoningLevel = row.payload.collaboration_mode.settings.reasoning_effort;
+      currentReasoningLevel = normalizeReasoningLevel(row.payload.collaboration_mode.settings.reasoning_effort);
     }
 
     if (row.type === "event_msg" && row.payload?.type === "token_count" && row.payload?.info?.total_token_usage) {
@@ -118,15 +162,18 @@ function extractSessionData(entries) {
             cachedTokens: diffCached,
             reasoningTokens: diffReasoning,
             totalTokens: diffInput + diffOutput,
+            requestInputTokens: maxRequestInputForPrompt,
             continuations: Math.max(0, continuations - 1)
           });
         }
       }
 
       const texts = (row.payload.content || []).filter(c => c.type === 'input_text' || c.type === 'text');
-      pendingPrompt = texts.length > 0 ? texts.map(c => c.text).join('\n').trim() : "(No Prompt)";
+      const rawPrompt = texts.length > 0 ? texts.map(c => c.text).join('\n') : "";
+      pendingPrompt = cleanPrompt(rawPrompt);
       
       continuations = 0;
+      maxRequestInputForPrompt = 0;
       baselineTotalInput = currentTotalInput;
       baselineTotalOutput = currentTotalOutput;
       baselineTotalCached = currentTotalCached;
@@ -141,6 +188,9 @@ function extractSessionData(entries) {
       const usage = row.payload.info.last_token_usage;
       const inTok = usage.input_tokens || 0;
       const outTok = usage.output_tokens || 0;
+      if (inTok > maxRequestInputForPrompt) {
+        maxRequestInputForPrompt = inTok;
+      }
       
       if (inTok !== lastSeenInput || outTok !== lastSeenOutput) {
          lastSeenInput = inTok;
@@ -166,6 +216,7 @@ function extractSessionData(entries) {
         cachedTokens: diffCached,
         reasoningTokens: diffReasoning,
         totalTokens: diffInput + diffOutput,
+        requestInputTokens: maxRequestInputForPrompt,
         continuations: Math.max(0, continuations - 1)
       });
     }
@@ -222,12 +273,18 @@ async function parseAllSessions() {
     if (queries.length > 0) {
       const counts = {};
       let maxCount = 0;
+      let maxPriority = -1;
+      const priority = { low: 1, medium: 2, high: 3, very_high: 4 };
       for (const q of queries) {
-        if (!q.reasoningLevel) continue;
-        counts[q.reasoningLevel] = (counts[q.reasoningLevel] || 0) + 1;
-        if (counts[q.reasoningLevel] > maxCount) {
-          maxCount = counts[q.reasoningLevel];
-          reasoningLevel = q.reasoningLevel;
+        const normalized = normalizeReasoningLevel(q.reasoningLevel);
+        if (!normalized) continue;
+        counts[normalized] = (counts[normalized] || 0) + 1;
+        const curCount = counts[normalized];
+        const curPriority = priority[normalized] || 0;
+        if (curCount > maxCount || (curCount === maxCount && curPriority > maxPriority)) {
+          maxCount = curCount;
+          maxPriority = curPriority;
+          reasoningLevel = normalized;
         }
       }
     }
@@ -241,6 +298,8 @@ async function parseAllSessions() {
       sessionId: t.id,
       firstPrompt: t.title || "Untitled",
       project: t.cwd,
+      createdAt: t.created_at ? (t.created_at * 1000) : null,
+      updatedAt: t.updated_at ? (t.updated_at * 1000) : null,
       date: date,
       duration: durationStr,
       model: model,
@@ -344,16 +403,16 @@ async function parseAllSessions() {
       m.queryCount += 1;
     }
 
-    let curPrompt = null, curInput = 0, curOutput = 0, curConts = 0;
+    let curPrompt = null, curInput = 0, curOutput = 0, curReasoning = 0, curConts = 0;
     let curModels = {};
     const flushProjectPrompt = () => {
-      if (curPrompt && (curInput + curOutput) > 0) {
+      if (curPrompt && (curInput + curOutput + curReasoning) > 0) {
         const topModel = Object.entries(curModels).sort((a, b) => b[1] - a[1])[0]?.[0] || session.model;
         p.allPrompts.push({
           prompt: curPrompt.substring(0, 300),
           inputTokens: curInput,
           outputTokens: curOutput,
-          totalTokens: curInput + curOutput,
+          totalTokens: curInput + curOutput + curReasoning,
           continuations: curConts,
           model: topModel,
           date: session.date,
@@ -365,13 +424,16 @@ async function parseAllSessions() {
       if (q.userPrompt && q.userPrompt !== curPrompt) {
         flushProjectPrompt();
         curPrompt = q.userPrompt;
-        curInput = 0; curOutput = 0; curConts = 0;
+        curInput = 0; curOutput = 0; curReasoning = 0; curConts = 0;
         curModels = {};
       } else if (!q.userPrompt) {
         curConts++;
       }
       curInput += q.inputTokens;
       curOutput += q.outputTokens;
+      curReasoning += (q.reasoningTokens || 0);
+      const m = q.model || session.model;
+      curModels[m] = (curModels[m] || 0) + 1;
     }
     flushProjectPrompt();
   }
@@ -411,26 +473,55 @@ async function parseAllSessions() {
       const end = new Date(totals.dateRange.to).getTime();
       const days = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
       
-      const startOfCurrentMonth = new Date();
-      startOfCurrentMonth.setDate(1);
+      const maxTime = Math.max(...sessions.map(s => s.createdAt || 0));
+      // Anchor to current calendar month
+      const refDate = new Date();
       
-      const thisMonthSessions = sessions.filter(s => new Date(s.date) >= startOfCurrentMonth);
+      const startOfCurrentMonth = new Date(refDate);
+      startOfCurrentMonth.setDate(1);
+      startOfCurrentMonth.setHours(0,0,0,0);
+      
+      const thisMonthSessions = sessions.filter(s => s.createdAt && new Date(s.createdAt) >= startOfCurrentMonth);
       totals.costThisMonth = thisMonthSessions.reduce((sum, s) => sum + s.cost, 0);
       
       const maxDaysInMonth = new Date(startOfCurrentMonth.getFullYear(), startOfCurrentMonth.getMonth() + 1, 0).getDate();
-      const currentDayOfMonth = Math.max(1, new Date().getDate());
+      const currentDayOfMonth = Math.max(1, refDate.getDate());
       totals.projectedMonthlyCost = (totals.costThisMonth / currentDayOfMonth) * maxDaysInMonth;
+
+      // Calculate Week-over-week cost
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      const lastWeekStart = maxTime - weekMs;
+      const prevWeekStart = lastWeekStart - weekMs;
+
+      const lastWeekCost = sessions.filter(s => s.createdAt > lastWeekStart).reduce((sum, s) => sum + s.cost, 0);
+      const prevWeekCost = sessions.filter(s => {
+        return s.createdAt > prevWeekStart && s.createdAt <= lastWeekStart;
+      }).reduce((sum, s) => sum + s.cost, 0);
+
+      if (prevWeekCost > 0) {
+        const growth = ((lastWeekCost - prevWeekCost) / prevWeekCost) * 100;
+        totals.weekOverWeek = (growth > 0 ? '+' : '') + growth.toFixed(0) + '%';
+      } else if (lastWeekCost > 0) {
+        totals.weekOverWeek = 'N/A';
+      } else {
+        totals.weekOverWeek = '0%';
+      }
   } else {
       totals.costThisMonth = 0;
       totals.projectedMonthlyCost = 0;
+      totals.weekOverWeek = 'N/A';
   }
 
   totals.avgTokensPerSession = totals.totalSessions > 0 ? Math.round(totals.totalTokens / totals.totalSessions) : 0;
   
   // Expose cache savings estimation for the UI
-  const avgInputPrice = sessions.length ? sessions.reduce((s, x) => s + getPricing(x.model).input, 0) / sessions.length : DEFAULT_PRICING.input;
-  const avgCacheReadPrice = sessions.length ? sessions.reduce((s, x) => s + getPricing(x.model).cacheRead, 0) / sessions.length : DEFAULT_PRICING.cacheRead;
-  totals.cacheSavings = totals.totalCacheReadTokens * (avgInputPrice - avgCacheReadPrice);
+  totals.cacheSavings = sessions.reduce((sum, s) => {
+    return sum + (s.queries || []).reduce((qSum, q) => {
+      const p = getPricing(q.model || s.model);
+      if (p.unknown) return qSum;
+      return qSum + (q.cachedTokens || 0) * Math.max(0, p.input - p.cacheRead);
+    }, 0);
+  }, 0);
 
   const insights = generateInsights(sessions, allPrompts, totals);
 
@@ -456,36 +547,23 @@ function generateInsights(sessions, allPrompts, totals) {
   }
 
   function modelShort(m) {
-    // New format: codex-{family}-{major}-{minor}[-date]
-    // e.g. codex-opus-4-6, codex-sonnet-4-6, codex-haiku-4-5-20251001
-    let match = m.match(/^codex-(opus|sonnet|haiku)-(\d+)-(\d+)/i);
+    if (!m) return 'Unknown';
+    // Format: gpt-5.3-codex -> GPT 5.3 Codex
+    let match = m.match(/^gpt-([\d\.]+)-codex(?:-(mini|max))?/i);
     if (match) {
-      const name = match[1].charAt(0).toUpperCase() + match[1].slice(1);
-      return name + ' ' + match[2] + '.' + match[3];
+      if (match[2]) {
+        // gpt-5.1-codex-mini -> GPT 5.1 Mini
+        const modifier = match[2].charAt(0).toUpperCase() + match[2].slice(1);
+        return `GPT ${match[1]} ${modifier}`;
+      }
+      return `GPT ${match[1]} Codex`;
     }
-    // Old format with sub-version: codex-3-5-{family} or codex-3-7-{family}
-    match = m.match(/^codex-(\d+)-(\d+)-(opus|sonnet|haiku)/i);
+    // Format: gpt-5.2 -> GPT 5.2
+    match = m.match(/^gpt-([\d\.]+)/i);
     if (match) {
-      const name = match[3].charAt(0).toUpperCase() + match[3].slice(1);
-      return name + ' ' + match[1] + '.' + match[2];
+      return `GPT ${match[1]}`;
     }
-    // Old format: codex-3-{family}
-    match = m.match(/^codex-(\d+)-(opus|sonnet|haiku)/i);
-    if (match) {
-      const name = match[2].charAt(0).toUpperCase() + match[2].slice(1);
-      return name + ' ' + match[1];
-    }
-    if (m.includes('opus')) return 'Opus';
-    if (m.includes('sonnet')) return 'Sonnet';
-    if (m.includes('haiku')) return 'Haiku';
     return m;
-  }
-
-  function fmt(n) {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-    if (n >= 10_000) return (n / 1_000).toFixed(0) + 'K';
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-    return n.toLocaleString();
   }
 
   // 1. Long conversations getting more expensive over time
@@ -510,20 +588,21 @@ function generateInsights(sessions, allPrompts, totals) {
     }
   }
 
-  // 2. Marathon conversations
-  const turnCounts = sessions.map(s => s.queryCount);
-  const medianTurns = turnCounts.length > 0 ? (turnCounts.sort((a, b) => a - b)[Math.floor(turnCounts.length / 2)] || 0) : 0;
-  const longCount = sessions.filter(s => s.queryCount > 150).length;
-  if (longCount >= 1) {
-    const longTokens = sessions.filter(s => s.queryCount > 150).reduce((s, ses) => s + ses.totalTokens, 0);
-    const longPct = ((longTokens / Math.max(totals.totalTokens, 1)) * 100).toFixed(0);
-    insights.push({
-      id: 'marathon-sessions',
-      type: 'info',
-      title: `Just ${longCount} long conversations used ${longPct}% of all your tokens`,
-      description: `You have ${longCount} conversations with over 150 messages each. These alone consumed ${fmt(longTokens)} tokens -- that's ${longPct}% of everything. Meanwhile, your typical conversation is about ${medianTurns} messages. Long conversations aren't always bad, but they're disproportionately expensive because of how context builds up.`,
-      action: 'Try keeping one conversation per task. While long conversations use many tokens, Codex Prompt Caching significantly discounts the cost of re-reading recent messages. Avoid editing the very top of your project or system prompts to maintain high cache hit rates.',
-    });
+  // 2. Output Optimization (The Stop Yapping Rule)
+  // Replaces the old 'marathon session' to focus on high-output rewrites.
+  if (sessions.length > 0) {
+    const heavyWriters = sessions.filter(s => s.queryCount > 0 && (s.outputTokens / s.queryCount) > 2500);
+    if (heavyWriters.length > 0) {
+      const worst = heavyWriters.sort((a,b) => (b.outputTokens/b.queryCount) - (a.outputTokens/a.queryCount))[0];
+      const avgOutput = Math.round(worst.outputTokens / worst.queryCount);
+      insights.push({
+        id: 'output-optimization',
+        type: 'warning',
+        title: `Codex is rewriting entire files (${fmt(avgOutput)} output tokens per turn)`,
+        description: `In the session "${worst.firstPrompt.substring(0, 50)}...", Codex averaged ${fmt(avgOutput)} output tokens every time it replied. This usually means it is rewriting massive files from scratch just to change one or two lines, which drains your budget quickly.`,
+        action: `Add a system rule like: "Only return the functions you changed, do not rewrite the entire file." This keeps the output tokens strictly focused on edits.`,
+      });
+    }
   }
 
   // 3. Token Burn Rate Insight
@@ -560,15 +639,15 @@ function generateInsights(sessions, allPrompts, totals) {
   
   const nearLimitSessions = sessions.filter(s => {
     const limit = modelContextLimits[s.model.toLowerCase()] || 128000;
-    // We check the last query's total input tokens to see if it was near the limit
+    // We check the peak single-request input tokens to see if it was near the limit
     if (!s.queries || s.queries.length === 0) return false;
-    const peakInput = Math.max(...s.queries.map(q => q.inputTokens));
+    const peakInput = Math.max(...s.queries.map(q => q.requestInputTokens || 0));
     return peakInput > (limit * 0.8); // 80% utilisation
   });
 
   if (nearLimitSessions.length > 0) {
     const s = nearLimitSessions[0];
-    const peakInput = Math.max(...s.queries.map(q => q.inputTokens));
+    const peakInput = Math.max(...s.queries.map(q => q.requestInputTokens || 0));
     const limit = modelContextLimits[s.model.toLowerCase()] || 128000;
     insights.push({
       id: 'context-window-limit',
@@ -579,7 +658,45 @@ function generateInsights(sessions, allPrompts, totals) {
     });
   }
 
-  // 5. Maximize Cache Hits
+  // 4. Reasoning ROI Analyzer (High Effort on Short Prompts)
+  const allQueries = sessions.flatMap(s => s.queries || []);
+  const highReasoningQueries = allQueries.filter(q => {
+    const level = normalizeReasoningLevel(q.reasoningLevel);
+    return level === 'high' || level === 'very_high';
+  });
+  
+  if (highReasoningQueries.length > 0) {
+    // Find queries where prompt is very short but reasoning is very high
+    const lowROIPrompts = highReasoningQueries.filter(q => 
+      q.userPrompt && wordCount(q.userPrompt) < 20 && q.reasoningTokens > 2000
+    );
+    
+    if (lowROIPrompts.length > 5) {
+      const wastedTokens = lowROIPrompts.reduce((sum, q) => sum + q.reasoningTokens, 0);
+      insights.push({
+        id: 'reasoning-roi',
+        type: 'warning',
+        title: `Low ROI on "High" Reasoning Effort (${fmt(wastedTokens)} tokens)`,
+        description: `You have ${lowROIPrompts.length} recent prompts that were very short (under 20 words) but generated over 2,000 hidden reasoning tokens each while using high or very high reasoning effort. For example, asking "${lowROIPrompts[0].userPrompt.substring(0, 30)}..." burned massive reasoning tokens. High reasoning effort is charged as output tokens and gets expensive quickly.`,
+        action: `Switch Codex to "Low" reasoning effort for quick formatting requests, simple questions, or small targeted edits. Only use "High" effort for complex architectural design or tough bug fixing.`,
+      });
+    }
+  }
+
+  // 5. The Tab Hoarder Warning (Massive baselines)
+  const massiveBaselines = sessions.filter(s => s.queries && s.queries.length > 0 && s.queries[0].inputTokens > 50000);
+  if (massiveBaselines.length > 3) {
+    const avgStart = Math.round(massiveBaselines.reduce((sum, s) => sum + s.queries[0].inputTokens, 0) / massiveBaselines.length);
+    insights.push({
+      id: 'tab-hoarder',
+      type: 'warning',
+      title: `You might be a Tab Hoarder (Avg Start: ${fmt(avgStart)} tokens)`,
+      description: `In ${massiveBaselines.length} recent conversations, your very first message sent over ${fmt(avgStart)} input tokens to Codex. This usually happens when you have dozens of files open in your IDE, so Codex is forced to read all of them every time you ask a question.`,
+      action: `Close unused files and tabs before starting a new conversation. This dramatically reduces your base input token cost and speeds up Codex's response time by giving it less noise to sift through.`,
+    });
+  }
+
+  // 6. Maximize Cache Hits
   if (totals.totalInputTokens > 0) {
     const cachePct = (totals.totalCacheReadTokens / totals.totalInputTokens) * 100;
     if (cachePct < 50) {
@@ -593,47 +710,37 @@ function generateInsights(sessions, allPrompts, totals) {
     }
   }
 
-  // 6. Most tokens are re-reading, not writing
-  if (totals.totalTokens > 0) {
-    const outputPct = (totals.totalOutputTokens / totals.totalTokens) * 100;
-    if (outputPct < 5) {
-      insights.push({
-        id: 'input-heavy',
-        type: 'info',
-        title: `${outputPct.toFixed(1)}% of your tokens are Codex actually writing`,
-        description: `Here's something surprising: out of ${fmt(totals.totalTokens)} total tokens, only ${fmt(totals.totalOutputTokens)} are from Codex writing responses. The other ${(100 - outputPct).toFixed(1)}% is Codex re-reading your conversation history, files, and context before each response. This means the biggest factor in token usage isn't how much Codex writes -- it's how long your conversations are.`,
-        action: 'Keeping conversations shorter has more impact than asking for shorter answers. A 20-message conversation costs far less than a 200-message one, even if the total output is similar.',
-      });
+  // 7. Night Owl / Time-of-Day Habits
+  if (totals.totalTokens > 0 && sessions.length > 5) {
+    let lateNightTokens = 0;
+    let totalTimeTokens = 0;
+    sessions.forEach(s => {
+      const ts = s.createdAt || s.updatedAt;
+      if (ts) {
+        const dt = new Date(ts);
+        const hour = dt.getHours();
+        totalTimeTokens += s.totalTokens;
+        if (hour >= 22 || hour < 4) { // 10 PM to 4 AM
+          lateNightTokens += s.totalTokens;
+        }
+      }
+    });
+    
+    if (totalTimeTokens > 0) {
+      const nightPct = (lateNightTokens / totalTimeTokens) * 100;
+      if (nightPct > 40) {
+        insights.push({
+          id: 'night-owl',
+          type: 'info',
+          title: `You are a Night Owl! (${nightPct.toFixed(0)}% late-night usage)`,
+          description: `Most of your heavy lifting happens when the sun goes down. Exactly ${nightPct.toFixed(0)}% of your total Codex token usage (${fmt(lateNightTokens)} tokens) happens between 10:00 PM and 4:00 AM.`,
+          action: `Late night coding sessions can lead to marathon context windows. Remember to start fresh conversations if you switch topics deep into the night to avoid dragging huge memory payloads.`,
+        });
+      }
     }
   }
 
-  // 6. Week-over-week
-  if (sessions.length > 0) {
-    const maxTime = Math.max(...sessions.map(s => new Date(s.date).getTime()));
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
-    const lastWeekStart = maxTime - weekMs;
-    const prevWeekStart = lastWeekStart - weekMs;
 
-    const lastWeekTokens = sessions.filter(s => new Date(s.date).getTime() > lastWeekStart).reduce((sum, s) => sum + s.totalTokens, 0);
-    const prevWeekTokens = sessions.filter(s => {
-      const t = new Date(s.date).getTime();
-      return t > prevWeekStart && t <= lastWeekStart;
-    }).reduce((sum, s) => sum + s.totalTokens, 0);
-
-    if (prevWeekTokens > 0) {
-      const growth = ((lastWeekTokens - prevWeekTokens) / prevWeekTokens) * 100;
-      insights.push({
-        id: 'week-over-week',
-        stat: (growth > 0 ? '+' : '') + growth.toFixed(0) + '%'
-      });
-    } else if (lastWeekTokens > 0) {
-      // If there was no activity the previous week but there is this week
-      insights.push({
-        id: 'week-over-week',
-        stat: 'N/A' // Not enough baseline
-      });
-    }
-  }
 
   return insights;
 }

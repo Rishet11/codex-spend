@@ -6,66 +6,55 @@
 <title>Codex Spend</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #030303;
-    --card-bg: rgba(17, 17, 17, 0.7);
-    --card-border: rgba(255, 255, 255, 0.08);
-    --card-border-hover: rgba(255, 255, 255, 0.15);
+    --bg: #F8FAFC;
     --white: #FFFFFF;
-    --text: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --text-tertiary: #64748B;
-    --accent: #6366F1;
+    --text: #1E293B;
+    --text-secondary: #475569;
+    --text-tertiary: #94A3B8;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
 
-    /* Premium Neon Palette */
-    --indigo: #818CF8;
-    --violet: #A78BFA;
-    --purple: #C084FC;
-    --teal: #2DD4BF;
-    --cyan: #22D3EE;
-    --emerald: #34D399;
-    --amber: #FBBF24;
-    --orange: #FB923C;
-    --rose: #FB7185;
-    --blue: #60A5FA;
+    /* Professional Palette */
+    --indigo: #4F46E5;
+    --violet: #7C3AED;
+    --purple: #9333EA;
+    --teal: #0D9488;
+    --cyan: #0891B2;
+    --emerald: #059669;
+    --amber: #D97706;
+    --orange: #EA580C;
+    --rose: #E11D48;
+    --blue: #2563EB;
 
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-    --glow: 0 0 20px rgba(99, 102, 241, 0.2);
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    /* Soft premium shadows + crisp borders */
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01), 0 0 0 1px var(--border);
+    --card-shadow-hover: var(--shadow-sm), 0 0 0 1px var(--border-strong);
 
-    --radius: 20px;
-    --radius-sm: 14px;
-    --radius-xs: 8px;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'Geist Mono', 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
   }
 
   body {
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
   }
 
-  /* Radial Atmospheric Accents */
-  body::before {
-    content: '';
-    position: fixed; top: -10%; left: -10%; width: 50%; height: 50%;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
-  body::after {
-    content: '';
-    position: fixed; bottom: -10%; right: -10%; width: 50%; height: 50%;
-    background: radial-gradient(circle, rgba(20, 184, 166, 0.05) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
+  body::before { display: none; }
 
   /* Loading */
   .loading {
@@ -81,85 +70,73 @@
   .loading-text { color: var(--text-secondary); font-size: 15px; font-weight: 500; }
 
   /* Layout */
-  .container { max-width: 1300px; margin: 0 auto; padding: 60px 28px 80px; position: relative; z-index: 1; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 28px 60px; position: relative; z-index: 1; }
 
-  /* ---- GLASS CARD ---- */
-  .bento-card {
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    padding: 24px;
-    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-    box-shadow: var(--glass-shadow);
-    overflow: hidden;
-    position: relative;
-  }
-  .bento-card:hover { border-color: var(--card-border-hover); transform: translateY(-2px); }
-  .bento-card::after {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at top left, rgba(255,255,255,0.03) 0%, transparent 50%);
-    pointer-events: none;
-  }
+  /* Fade-in animation */
+  /* Removed entry animations for faster feel */
+  .animate { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .delay-1, .delay-2, .delay-3, .delay-4, .delay-5 { animation-delay: 0s !important; }
 
   /* ---- HEADER ---- */
   .header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 50px; flex-wrap: wrap; gap: 20px;
+    margin-bottom: 40px; flex-wrap: wrap; gap: 16px;
   }
-  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
   .logo-mark {
-    width: 44px; height: 44px; border-radius: 12px;
+    width: 38px; height: 38px; border-radius: 10px;
     background: linear-gradient(135deg, var(--indigo), var(--violet));
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 20px rgba(129, 140, 248, 0.3);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
   }
-  .logo-mark svg { width: 24px; height: 24px; stroke: white; }
-  .header h1 { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -1px; }
-  .header-right { display: flex; align-items: center; gap: 12px; }
+  .logo-mark svg { width: 22px; height: 22px; }
+  .header h1 { font-size: 21px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+  .header-right { display: flex; align-items: center; gap: 14px; }
   .date-range {
-    color: var(--text-secondary); font-size: 13px; font-weight: 600;
-    background: rgba(255,255,255,0.05); padding: 8px 18px; border-radius: 100px;
-    border: 1px solid var(--card-border);
+    color: var(--text-tertiary); font-size: 13px; font-weight: 500;
+    background: var(--white); padding: 6px 14px; border-radius: 20px;
+    border: 1px solid var(--border);
   }
   .refresh-btn {
-    background: var(--text); border: none;
-    color: var(--bg); padding: 8px 20px; border-radius: 100px;
-    cursor: pointer; font-size: 13px; font-weight: 700; font-family: var(--font);
-    transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+    background: var(--white); border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 8px 18px; border-radius: 20px;
+    cursor: pointer; font-size: 13.5px; font-weight: 600; font-family: var(--font);
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   }
-  .refresh-btn:hover { background: var(--white); transform: scale(1.02); }
+  .refresh-btn:hover {
+    border-color: var(--indigo); color: var(--indigo);
+    box-shadow: 0 2px 8px rgba(99,102,241,0.12);
+  }
   .refresh-btn svg { width: 14px; height: 14px; }
 
   /* ---- STAT CARDS ---- */
-  /* ---- BENTO LAYOUT ---- */
-  .bento-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-auto-rows: minmax(140px, auto);
-    gap: 20px;
-    margin-bottom: 32px;
+  .stats-row {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 16px; margin-bottom: 32px;
   }
-  .bento-stat { padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
-  .bento-stat.double { grid-column: span 2; }
+  @media (max-width: 1000px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--white); border-radius: var(--radius-sm);
+    padding: 20px; position: relative;
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.15s;
+  }
+  .stat-card:hover { box-shadow: var(--card-shadow-hover); }
+  .stat-card .accent-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
   .stat-label {
-    font-size: 13px; font-weight: 600; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
-    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px;
   }
   .stat-value {
-    font-size: 42px; font-weight: 900; letter-spacing: -2px;
-    line-height: 1; margin-bottom: 8px;
+    font-size: 36px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.1; margin-bottom: 6px;
     color: var(--text);
   }
-  .stat-sub { font-size: 14px; color: var(--text-tertiary); font-weight: 500; }
-  .stat-trend {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;
-  }
-  .trend-up { color: var(--emerald); background: rgba(52, 211, 153, 0.1); }
-  .trend-down { color: var(--rose); background: rgba(251, 113, 133, 0.1); }
+  .stat-sub { font-size: 13.5px; color: var(--text-secondary); font-weight: 500; }
 
   /* Tooltips */
   .has-tooltip {
@@ -171,22 +148,25 @@
     bottom: calc(100% + 10px);
     left: 50%;
     transform: translateX(-50%);
-    background: #FFFFFF;
-    color: #000000;
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.4;
-    padding: 12px 16px;
-    border-radius: 12px;
+    background: var(--text);
+    color: #F8FAFC;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    padding: 10px 14px;
+    border-radius: 10px;
     white-space: normal;
     width: max-content;
-    max-width: 300px;
+    max-width: 280px;
     pointer-events: none;
     opacity: 0;
-    transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateX(-50%) translateY(8px);
+    transition: opacity 0.15s, transform 0.15s;
+    transform: translateX(-50%) translateY(4px);
     z-index: 100;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    text-transform: none;
+    letter-spacing: 0;
+    text-align: left;
   }
   .has-tooltip .tooltip::after {
     content: '';
@@ -195,22 +175,38 @@
     left: 50%;
     transform: translateX(-50%);
     border: 6px solid transparent;
-    border-top-color: #FFFFFF;
+    border-top-color: var(--text);
   }
-  .has-tooltip:hover .tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .has-tooltip:hover .tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  /* For table headers, tooltip goes below */
+  .has-tooltip-below .tooltip {
+    bottom: auto;
+    top: calc(100% + 10px);
+  }
+  .has-tooltip-below .tooltip::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--text);
+  }
+  /* Help icon next to labels */
   .help-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.06);
     color: var(--text-tertiary);
     font-size: 10px;
-    font-weight: 800;
-    margin-left: 6px;
+    font-weight: 700;
+    margin-left: 5px;
     vertical-align: middle;
+    flex-shrink: 0;
   }
 
   /* Token explainer */
@@ -232,15 +228,29 @@
   /* ---- INSIGHTS ---- */
   .insights-section { margin-bottom: 32px; }
   .insight-card {
-    background: var(--card-bg); border-radius: var(--radius-sm);
-    padding: 16px 20px; margin-bottom: 12px;
-    border: 1px solid var(--card-border);
-    cursor: pointer; transition: all 0.2s;
+    background: var(--white); border-radius: var(--radius-sm);
+    padding: 12px 16px; margin-bottom: 8px;
+    box-shadow: var(--card-shadow);
+    cursor: pointer; transition: box-shadow 0.15s;
   }
-  .insight-card:hover { border-color: var(--card-border-hover); background: rgba(255,255,255,0.03); }
-  .insight-card.warning .insight-indicator { background: rgba(251, 191, 36, 0.15); color: var(--amber); }
-  .insight-card.info .insight-indicator { background: rgba(129, 140, 248, 0.15); color: var(--indigo); }
-  .insight-card.neutral .insight-indicator { background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); }
+  .insight-card:hover { box-shadow: var(--card-shadow-hover); }
+  .insight-top {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .insight-arrow {
+    margin-left: auto; flex-shrink: 0;
+    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary); transition: transform 0.25s ease;
+  }
+  .insight-card.expanded .insight-arrow { transform: rotate(180deg); }
+  .insight-indicator {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 14px;
+  }
+  .insight-card.warning .insight-indicator { background: #FEF3C7; color: #92400E; }
+  .insight-card.info .insight-indicator { background: #E0E7FF; color: #3730A3; }
+  .insight-card.neutral .insight-indicator { background: #F1F5F9; color: #475569; }
   .insight-title { font-size: 14px; font-weight: 700; line-height: 1.4; }
   .insight-oneliner { font-size: 13px; color: var(--text-secondary); margin-left: auto; white-space: nowrap; font-weight: 500; }
   .insight-expand {
@@ -265,15 +275,39 @@
   @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
 
   .chart-card {
-    background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border-radius: var(--radius); padding: 24px; border: 1px solid var(--card-border);
-    box-shadow: var(--glass-shadow); height: 380px; display: flex; flex-direction: column;
+    background: var(--white); border-radius: var(--radius-sm);
+    padding: 20px;
+    box-shadow: var(--card-shadow);
+    height: 380px; display: flex; flex-direction: column;
   }
   .chart-card h3 {
-    font-size: 14px; font-weight: 700; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
+    font-size: 13px; font-weight: 700; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px;
   }
-  canvas { display: block; width: 100% !important; height: 100% !important; flex: 1; min-height: 0; }
+  .chart-canvas-wrapper {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+  }
+  .chart-canvas-wrapper canvas {
+    display: block; width: 100%; height: 100%;
+  }
+  .doughnut-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .doughnut-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 240px;
+    max-height: 240px;
+  }
   .legend {
     display: flex; gap: 20px; margin-top: 16px;
     font-size: 12px; font-weight: 500; color: var(--text-secondary);
@@ -284,24 +318,25 @@
   /* ---- TOP PROMPTS ---- */
   .top-prompts { margin-bottom: 32px; }
   .prompts-card {
-    background: var(--card-bg); border-radius: var(--radius);
-    border: 1px solid var(--card-border); box-shadow: var(--glass-shadow);
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow);
     overflow: hidden;
   }
   .prompt-row {
-    display: flex; gap: 16px; padding: 20px 24px; align-items: start;
-    border-bottom: 1px solid var(--card-border);
-    cursor: pointer; transition: all 0.2s;
+    display: grid; grid-template-columns: 36px 1fr auto;
+    gap: 14px; padding: 16px 24px; align-items: start;
+    cursor: pointer; transition: background 0.15s;
   }
-  .prompt-row:hover { background: rgba(255,255,255,0.03); }
+  .prompt-row:last-child { border-bottom: none; }
+  .prompt-row:hover { background: #FAFBFF; }
   .prompt-rank {
     width: 28px; height: 28px; border-radius: 8px;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 700; color: var(--text-secondary);
   }
-  .prompt-row:nth-child(1) .prompt-rank { background: rgba(255,255,255,0.05); color: var(--text); }
-  .prompt-row:nth-child(2) .prompt-rank { background: rgba(255,255,255,0.03); color: var(--text-secondary); }
-  .prompt-row:nth-child(3) .prompt-rank { background: rgba(255,255,255,0.03); color: var(--text-secondary); }
+  .prompt-row:nth-child(1) .prompt-rank { background: #F1F5F9; color: var(--text); }
+  .prompt-row:nth-child(2) .prompt-rank { background: #F8FAFC; color: var(--text-secondary); }
+  .prompt-row:nth-child(3) .prompt-rank { background: #F8FAFC; color: var(--text-secondary); }
   .prompt-text {
     font-size: 14px; font-weight: 500; line-height: 1.5;
     display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
@@ -332,20 +367,20 @@
     color: var(--text-tertiary); transition: transform 0.25s ease; flex-shrink: 0;
   }
   .proj-row { cursor: pointer; }
-  .proj-row:hover td { background: rgba(255,255,255,0.03); }
+  .proj-row:hover td { background: #FAFBFF; }
   .proj-row.expanded .proj-chevron { transform: rotate(90deg); }
-  .proj-drawer td { padding: 0; border-bottom: 1px solid var(--card-border); }
-  .proj-drawer-inner { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; background: rgba(255,255,255,0.02); }
+  .proj-drawer td { padding: 0; border-bottom: 1px solid var(--border); }
+  .proj-drawer-inner { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; background: #FAFBFC; }
   .proj-drawer.open .proj-drawer-inner { max-height: 600px; }
   .proj-drawer-content { padding: 12px 16px 16px; }
   .drawer-prompt-list { display: flex; flex-direction: column; gap: 8px; }
   .drawer-prompt-row {
     display: grid; grid-template-columns: 24px 1fr auto;
     gap: 10px; padding: 10px 14px; align-items: start;
-    background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: var(--radius-xs);
+    background: white; border: 1px solid var(--border); border-radius: var(--radius-xs);
     cursor: pointer; transition: border-color 0.15s;
   }
-  .drawer-prompt-row:hover { border-color: var(--card-border-hover); }
+  .drawer-prompt-row:hover { border-color: var(--border-strong); }
   .drawer-rank {
     width: 20px; height: 20px; border-radius: 6px;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
@@ -358,7 +393,7 @@
   }
   .drawer-prompt-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
   .tool-chip {
-    background: rgba(255,255,255,0.05); border: 1px solid var(--card-border);
+    background: #F1F5F9; border: 1px solid var(--border);
     padding: 1px 7px; border-radius: var(--radius-xs); font-size: 10px; font-weight: 600;
     color: var(--text-secondary); white-space: nowrap;
   }
@@ -375,8 +410,8 @@
   }
   .session-search {
     background: var(--white); border: 1px solid var(--border);
-    color: var(--text); padding: 8px 14px; border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 500; width: 300px; outline: none;
+    color: var(--text); padding: 9px 16px; border-radius: var(--radius-sm);
+    font-size: 13.5px; font-weight: 500; width: 300px; outline: none;
     font-family: var(--font); transition: all 0.15s;
   }
   .session-search::placeholder { color: var(--text-tertiary); }
@@ -384,43 +419,53 @@
   .session-count { color: var(--text-tertiary); font-size: 13px; font-weight: 600; }
 
   .sessions-card {
-    background: var(--card-bg); border-radius: var(--radius);
-    border: 1px solid var(--card-border); box-shadow: var(--glass-shadow);
-    overflow: hidden; /* Changed to hidden for sticky header */
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow);
+    overflow: visible;
   }
-  .sessions-table { width: 100%; border-collapse: collapse; }
+  .sessions-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .sessions-table th {
-    position: sticky; top: 0; z-index: 2; /* Sticky header */
-    text-align: left; padding: 14px 16px;
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--text-secondary); /* Changed to text-secondary */
-    border-bottom: 1px solid var(--card-border); /* Changed to 1px */
-    cursor: pointer; user-select: none; background: var(--card-bg); /* Changed background */
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-tertiary);
+    border-bottom: 2px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap;
+    background: #F8FAFC;
   }
+  .sessions-table th:hover { color: var(--text-secondary); }
+  .sessions-table th.sorted { color: var(--indigo); }
   .sessions-table td {
-    padding: 16px; border-bottom: 1px solid var(--card-border); vertical-align: middle;
-    color: var(--text); /* Added text color */
+    padding: 16px 20px; border-bottom: 1px solid var(--border); vertical-align: middle;
   }
-  .sessions-table tbody tr:hover td { background: rgba(255,255,255,0.03); } /* Refined hover */
-  
+  .sessions-table tbody tr { cursor: pointer; transition: background 0.1s; }
+  .sessions-table tbody tr:hover td { background: #FAFBFF; }
+  .sessions-table tbody tr:last-child td { border-bottom: none; }
+  .prompt-preview {
+    max-width: 420px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-weight: 500; font-size: 13.5px; line-height: 1.5; color: var(--text);
+  }
+  .token-num {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    text-align: right; white-space: nowrap; letter-spacing: -0.3px;
+  }
   .model-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 12px; border-radius: 100px;
-    font-size: 12px; font-weight: 700;
-    transition: all 0.2s;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 0 0px rgba(0,0,0,0); /* Initial shadow for glow */
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+    transition: box-shadow 0.15s;
   }
-  .model-codex-5-3 { color: #818CF8; border-color: rgba(129, 140, 248, 0.3); box-shadow: 0 0 8px rgba(129, 140, 248, 0.4); } /* Neon indigo */
-  .model-codex-5-2 { color: #34D399; border-color: rgba(52, 211, 153, 0.3); box-shadow: 0 0 8px rgba(52, 211, 153, 0.4); } /* Neon emerald */
-  .model-codex-max { color: #FBBF24; border-color: rgba(251, 191, 36, 0.3); box-shadow: 0 0 8px rgba(251, 191, 36, 0.4); } /* Neon amber */
-  .model-codex-mini { color: #FB7185; border-color: rgba(251, 113, 133, 0.3); box-shadow: 0 0 8px rgba(251, 113, 133, 0.4); } /* Neon rose */
+  .model-badge:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  /* Professional badge colors */
+  .model-codex-5-3 { background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; }
+  .model-codex-5-2 { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+  .model-codex-max { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+  .model-codex-mini { background: #FDF2F8; color: #9D174D; border: 1px solid #FBCFE8; }
+  .model-unknown { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
   .model-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .model-codex-5-3 .model-dot { background: #818CF8; }
-  .model-codex-5-2 .model-dot { background: #34D399; }
-  .model-codex-max .model-dot { background: #FBBF24; }
-  .model-codex-mini .model-dot { background: #FB7185; }
+  .model-codex-5-3 .model-dot { background: #4F46E5; }
+  .model-codex-5-2 .model-dot { background: #10B981; }
+  .model-codex-max .model-dot { background: #F59E0B; }
+  .model-codex-mini .model-dot { background: #EC4899; }
   /* Sub-line pills in project rows — compact variant */
   .model-pills {
     list-style: none; padding: 0; margin: 5px 0 0;
@@ -446,43 +491,45 @@
     font-weight: 600; font-size: 13px;
     font-family: var(--mono); letter-spacing: -0.2px; color: var(--text);
   }
-  .date-cell { white-space: nowrap; color: var(--text-secondary); font-weight: 500; }
+  .date-cell { white-space: nowrap; vertical-align: middle; }
   .project-tag {
     font-size: 11px; color: var(--text-tertiary); display: block;
-    margin-top: 1px; font-weight: 500;
-    max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 500; line-height: 1.2;
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
   /* ---- DRILLDOWN ---- */
   .drilldown {
-    position: fixed; top: 0; right: 0; bottom: 0; width: 600px;
-    background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(20px);
-    border-left: 1px solid var(--card-border);
-    z-index: 1000; display: flex; flex-direction: column;
-    box-shadow: -20px 0 50px rgba(0,0,0,0.5);
-    transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    background: var(--white); border-radius: var(--radius);
+    padding: 28px; margin-bottom: 32px; display: none;
+    border: 1px solid var(--border); box-shadow: var(--shadow-lg);
   }
-  .drilldown.open { transform: translateX(0); }
+  .drilldown.open { display: block; animation: fadeUp 0.3s ease-out; }
   .drilldown-header {
-    padding: 30px; border-bottom: 1px solid var(--card-border);
-    display: flex; align-items: start; justify-content: space-between;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px; gap: 16px;
   }
-  .drilldown-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
-  .drilldown-meta { font-size: 13px; color: var(--text-tertiary); font-weight: 600; }
+  .drilldown-title { font-size: 16px; font-weight: 700; line-height: 1.4; }
+  .drilldown-meta { font-size: 13px; color: var(--text-tertiary); margin-top: 4px; font-weight: 500; }
   .drilldown-close {
-    background: rgba(255,255,255,0.05); border: 1px solid var(--card-border);
-    color: var(--text-secondary); width: 36px; height: 36px; border-radius: 50%;
-    cursor: pointer; font-size: 24px; display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
+    background: var(--bg); border: none; color: var(--text-secondary);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
   }
-  .drilldown-close:hover { background: rgba(255,255,255,0.1); color: var(--white); }
-  .query-list { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .drilldown-close:hover { background: #EEF2FF; color: var(--indigo); }
+
+  .query-list { display: flex; flex-direction: column; gap: 8px; }
   .query-item {
-    background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: var(--radius-sm);
-    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+    display: grid; grid-template-columns: 36px 1fr auto;
+    gap: 14px; padding: 14px 16px; border-radius: var(--radius-sm);
+    background: var(--bg); align-items: start;
+    transition: background 0.1s;
   }
-  .query-item:hover { background: rgba(255,255,255,0.05); }
+  .query-item:hover { background: #EEF2FF; }
   .query-num {
+    width: 28px; height: 28px; border-radius: 8px; background: var(--white);
+    border: 1px solid var(--border);
     font-size: 12px; font-weight: 700; color: var(--text-tertiary);
     display: flex; align-items: center; justify-content: center;
   }
@@ -513,8 +560,12 @@
     text-align: center; margin-bottom: 36px; padding: 0 20px;
   }
   .hero-title {
-    font-size: 32px; font-weight: 700; letter-spacing: -1px;
-    color: var(--text);
+    font-size: 36px; font-weight: 800; letter-spacing: -0.03em;
+    color: var(--text); padding-bottom: 4px;
+    background: linear-gradient(90deg, #1E293B, #475569);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
     margin-bottom: 10px; line-height: 1.2;
   }
   .hero-subtitle {
@@ -541,37 +592,37 @@
   <div class="header">
     <div class="header-left">
       <div class="logo-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
       </div>
       <h1>Codex Spend</h1>
     </div>
     <div class="header-right">
       <span id="dateRange" class="date-range"></span>
       <button class="refresh-btn" onclick="refreshData()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         Refresh
       </button>
     </div>
   </div>
 
-  <!-- Hero Section -->
+  <!-- Value proposition -->
   <div class="hero-section">
-    <h2 class="hero-title">Your Codex tokens, visualized.</h2>
-    <p class="hero-subtitle">Premium insights into your OpenAI usage.</p>
+    <h2 class="hero-title">Your OpenAI Codex usage, visualized.</h2>
+    <p class="hero-subtitle">See where your tokens actually go.</p>
   </div>
 
-  <div id="pricingWarning" class="bento-card" style="display:none; background: rgba(245,158,11,0.05); border-color: rgba(245,158,11,0.2); color: var(--amber); margin-bottom: 30px; font-weight: 600; font-size: 14px; text-align: center;">
-    ⚠️ Some models have unknown pricing. Estimates may be lower than actual.
+  <div id="pricingWarning" class="privacy-notice animate" style="display:none; background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); color: #B45309; margin-bottom: 30px;">
+    ⚠️ Some models have unknown pricing. Estimated costs may be lower than actual.
   </div>
 
-  <!-- Bento Stats -->
-  <div class="bento-grid" id="statsRow"></div>
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow"></div>
 
   <!-- Insights -->
   <div id="insightsSection" class="insights-section" style="display:none">
     <div class="section-header">
-      <div class="section-icon" style="background:rgba(251, 191, 36, 0.1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round"><path d="M12 2a7 7 0 0 1 4 12.75V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.25A7 7 0 0 1 12 2z"/><path d="M9 21h6"/></svg>
+      <div class="section-icon" style="background:#FEF3C7">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"><path d="M12 2a7 7 0 0 1 4 12.75V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.25A7 7 0 0 1 12 2z"/><path d="M9 21h6"/></svg>
       </div>
       <div class="section-title">Insights</div>
     </div>
@@ -582,18 +633,26 @@
   <div class="charts-grid">
     <div class="chart-card">
       <h3 class="has-tooltip has-tooltip-below" style="display:inline-block">Tokens per Day<div class="tooltip">How many tokens you used each day. Indigo = fresh input + cache writes (full price), amber = cache reads (10x cheaper), purple = reasoning logic, teal = Codex output.</div></h3>
-      <canvas id="dailyChart"></canvas>
-      <div class="legend" style="flex-wrap:wrap">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--indigo)"></div> Fresh input (full price)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Cache reads (cheaper)</div>
+      <div class="chart-canvas-wrapper">
+        <canvas id="dailyChart"></canvas>
+      </div>
+      <div class="legend" style="flex-wrap:wrap; justify-content:center; margin-top:24px; padding-top:16px; border-top:1px solid var(--border);">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--indigo)"></div> Fresh input</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Cache reads</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Reasoning</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div> Codex output</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div> Output</div>
       </div>
     </div>
     <div class="chart-card">
       <h3>By Model</h3>
-      <canvas id="modelChart"></canvas>
-      <div id="modelLegend" class="legend" style="flex-direction:column; gap:12px; margin-top:20px;"></div>
+      <div class="chart-canvas-wrapper">
+        <div class="doughnut-wrapper">
+          <div class="doughnut-inner">
+            <canvas id="modelChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div id="modelLegend" class="legend" style="flex-direction:column; gap:12px; margin-top:24px; padding-top:16px; border-top:1px solid var(--border);"></div>
     </div>
   </div>
 
@@ -605,11 +664,11 @@
   <!-- Projects -->
   <div class="top-prompts">
     <div class="section-header">
-      <div class="section-icon" style="background:rgba(251, 249, 195, 0.1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <div class="section-icon" style="background:#FEF9C3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </div>
       <div class="section-title">Projects Breakdown</div>
-      <div style="margin-left:auto;color:var(--text-tertiary);font-size:14px;font-weight:600" id="projectsCount"></div>
+      <div style="margin-left:auto;color:var(--text-tertiary);font-size:14px" id="projectsCount"></div>
     </div>
     <div class="sessions-card" style="margin-top:16px">
       <table class="sessions-table proj-table">
@@ -629,8 +688,8 @@
   <!-- Most Expensive Prompts -->
   <div class="top-prompts">
     <div class="section-header">
-      <div class="section-icon" style="background:rgba(99, 102, 241, 0.1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2.5" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+      <div class="section-icon" style="background:#E0E7FF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
       </div>
       <div class="section-title has-tooltip has-tooltip-below" style="display:inline-flex">Most Expensive Prompts<div class="tooltip">Your top 20 individual messages ranked by how many tokens they used. Short vague messages like "Yes" often rank highest because they trigger long chains of tool calls where Claude tries to figure out what you meant.</div></div>
     </div>
@@ -652,8 +711,8 @@
   <!-- All Sessions -->
   <div class="sessions-section">
     <div class="section-header">
-      <div class="section-icon" style="background:rgba(20, 184, 166, 0.1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+      <div class="section-icon" style="background:#ECFDF5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
       </div>
       <div class="section-title">All Sessions</div>
     </div>
@@ -667,13 +726,13 @@
           <tr>
             <th data-sort="date">Date</th>
             <th data-sort="prompt">What you asked</th>
-            <th data-sort="model" class="has-tooltip has-tooltip-below">Model<div class="tooltip">Which AI model was used. OpenAI Codex models have different prices and capabilities.</div></th>
-            <th data-sort="reasoning_level" class="has-tooltip has-tooltip-below">Reasoning Level<div class="tooltip">The selected reasoning effort for this session (e.g. Low, Medium, High).</div></th>
-            <th data-sort="queries" style="text-align:right" class="has-tooltip has-tooltip-below">Messages<div class="tooltip">How many back-and-forth messages happened in this conversation, including automatic tool calls OpenAI Codex made.</div></th>
-            <th data-sort="total" style="text-align:right" class="sorted has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></th>
-            <th data-sort="input" style="text-align:right" class="has-tooltip has-tooltip-below">Read<div class="tooltip">Tokens Codex read: your messages, the conversation history, files, and system context. This grows with each message because the full history gets re-sent.</div></th>
-            <th data-sort="reasoning" style="text-align:right" class="has-tooltip has-tooltip-below">Reasoning<div class="tooltip">Tokens Codex used specifically to "think" out loud before returning its final output to you.</div></th>
-            <th data-sort="output" style="text-align:right" class="has-tooltip has-tooltip-below">Written<div class="tooltip">Tokens Codex wrote back: responses, code, explanations. Usually a small fraction of the total.</div></th>
+            <th data-sort="model"><span class="has-tooltip has-tooltip-below">Model<div class="tooltip">Which AI model was used. OpenAI Codex models have different prices and capabilities.</div></span></th>
+            <th data-sort="reasoning_level"><span class="has-tooltip has-tooltip-below">Reasoning Level<div class="tooltip">The selected reasoning effort for this session (e.g. Low, Medium, High).</div></span></th>
+            <th data-sort="queries" style="text-align:right"><span class="has-tooltip has-tooltip-below">Messages<div class="tooltip">How many back-and-forth messages happened in this conversation, including automatic tool calls OpenAI Codex made.</div></span></th>
+            <th data-sort="total" style="text-align:right" class="sorted"><span class="has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></span></th>
+            <th data-sort="input" style="text-align:right"><span class="has-tooltip has-tooltip-below">Read<div class="tooltip">Tokens Codex read: your messages, the conversation history, files, and system context. This grows with each message because the full history gets re-sent.</div></span></th>
+            <th data-sort="reasoning" style="text-align:right"><span class="has-tooltip has-tooltip-below">Reasoning<div class="tooltip">Tokens Codex used specifically to "think" out loud before returning its final output to you.</div></span></th>
+            <th data-sort="output" style="text-align:right"><span class="has-tooltip has-tooltip-below">Written<div class="tooltip">Tokens Codex wrote back: responses, code, explanations. Usually a small fraction of the total.</div></span></th>
           </tr>
         </thead>
         <tbody id="sessionsBody"></tbody>
@@ -682,8 +741,8 @@
   </div>
 
   <div class="footer">
-    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">This tool runs 100% locally -- no analytics, no tracking. If you find it useful (or not), I'd love to hear from you at <a href="mailto:writetoaniketparihar@gmail.com">writetoaniketparihar@gmail.com</a></div>
-    Made with <a href="https://codex.ai/code" target="_blank">OpenAI Codex</a> and &#10084; by <a href="https://www.linkedin.com/in/writetoaniketparihar/" target="_blank">Aniket</a>
+    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">This tool runs 100% locally -- no analytics, no tracking. If you find it useful (or not), I'd love to hear from you at <a href="mailto:rishetmehra11@gmail.com">rishetmehra11@gmail.com</a></div>
+    Made with <a href="https://openai.com/blog/openai-codex/" target="_blank">OpenAI Codex</a> and &#10084; by <a href="https://www.linkedin.com/in/rishetmehra/" target="_blank">Rishet Mehra</a> (<a href="https://github.com/Rishet11" target="_blank" style="margin-left: 4px;">GitHub</a>)
   </div>
 </div>
 
@@ -725,17 +784,15 @@ function modelShort(m) {
   return m;
 }
 function projectShort(p) {
-  // Strip Windows drive prefix (e.g. D-- or C--)
-  let s = p.replace(/^[A-Za-z]--/, '');
-  // Iteratively strip known parent directory segments
-  const known = /^(?:Users|home|user)-[^-]+-|^(?:GitHub|GitLab|git|Projects|projects|workspace|Workspace|Desktop|Documents|source|src|dev|Dev|code|Code|repos|Repos)-/;
-  let prev;
-  do { prev = s; s = s.replace(known, ''); } while (s !== prev && s.length > 0);
-  return s || p;
+  if (!p) return 'Unknown';
+  let norm = p.replace(/\\\\|--/g, '/');
+  if (!norm.includes('/')) norm = norm.replace(/-/g, '/');
+  const parts = norm.split('/').filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : p;
 }
 function projectFull(p) {
-  // Show the raw encoded name with Windows drive restored for readability
-  return p.replace(/^([A-Za-z])--/, '$1:\\');
+  if (!p) return 'Unknown';
+  return p.replace(/^([A-Za-z])--/, '$1:\\\\').replace(/--/g, '\\\\');
 }
 function escapeHtml(s) {
   const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
@@ -754,7 +811,7 @@ async function fetchData() {
       showError(json.error || `Server returned ${res.status}`);
       return;
     }
-    if (!json.totals || !json.sessions) {
+    if (!json.totals || !Object.keys(json.totals).length || !json.sessions) {
       showError('No session data found. Make sure you have used OpenAI Codex at least once.');
       return;
     }
@@ -815,33 +872,34 @@ function renderStats() {
   const range = t.dateRange ? `${formatDate(t.dateRange.from)} - ${formatDate(t.dateRange.to)}` : '';
   document.getElementById('dateRange').textContent = range;
 
-  const cacheTotal = (t.totalCacheCreationTokens || 0) + (t.totalCacheReadTokens || 0);
-  const uncachedInput = Math.max(0, t.totalInputTokens - cacheTotal);
-  const avgTokensPerMsg = t.totalQueries > 0 ? Math.round(t.totalTokens / t.totalQueries) : 0;
+  const cacheTotal = t.totalCacheReadTokens || 0;
+  const uncachedInput = Math.max(0, (t.totalInputTokens || 0) - cacheTotal);
+  const reasoning = t.totalReasoningTokens || 0;
+  const avgTokensPerMsg = t.totalQueries > 0 ? Math.round((t.totalTokens || 0) / t.totalQueries) : 0;
 
   const cards = [
-    { label: 'Total Usage', value: fmt(t.totalTokens), sub: `${fmt(uncachedInput)} in + ${fmt(cacheTotal)} cache + ${fmt(t.totalOutputTokens)} out`,
-      tip: 'The total number of tokens used across all your conversations.', double: true },
+    { label: 'Total Usage', value: fmt(t.totalTokens || 0), sub: `${fmt(uncachedInput)} in + ${fmt(cacheTotal)} cache + ${fmt(reasoning)} rsn + ${fmt(t.totalOutputTokens || 0)} out`,
+      tip: '<div style="margin-bottom:6px">The absolute total volume of tokens processed.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> Uncached Input + Cached Input + Reasoning + Output.</div>' },
     { label: 'Est. Cost', value: '$' + (t.totalCost || 0).toFixed(2), sub: `Based on API Codex prices`,
-      tip: 'An estimate of what this usage would cost using standard API pricing.' },
-    { label: 'Conversations', value: fmtFull(t.totalSessions), sub: `Each one used ~${fmt(t.avgTokensPerSession)} tokens`,
-      tip: 'Each time you start OpenAI Codex and begin chatting, that counts as one conversation.' },
-    { label: 'Messages Sent', value: fmtFull(t.totalQueries), sub: `Each message used ~${fmt(avgTokensPerMsg)} tokens`,
-      tip: 'Every time you hit Enter and send something to Codex.' },
+      tip: '<div style="margin-bottom:6px">The estimated dollar cost of your local usage.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> Calculated per message by multiplying tokens by their specific model pricing tier.</div>' },
+    { label: 'Conversations', value: fmtFull(t.totalSessions), sub: `Each one used ~${fmt(t.avgTokensPerSession)} tokens on average`,
+      tip: '<div style="margin-bottom:6px">A continuous thread with Codex.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> The high average size proves how much files and history your IDE bundles as the conversation builds up.</div>' },
+    { label: 'Messages Sent', value: fmtFull(t.totalQueries), sub: `Each message used ~${fmt(avgTokensPerMsg)} tokens on average`,
+      tip: '<div style="margin-bottom:6px">Individual prompts sent to the model.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> Every time you hit enter, your IDE automatically bundles open files and history into a massive payload.</div>' },
     { label: 'Reasoning Effort', value: fmt(t.totalReasoningTokens || 0), sub: `Tokens used for internal AI logic`,
-      tip: 'The number of tokens the model used internally to "think".' },
+      tip: '<div style="margin-bottom:6px">Invisible "thought process" tokens.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> Models process complex logic before answering. These hidden tokens cost the exact same as Written output.</div>' },
     { label: 'Cache Hit Rate', value: `${((t.cacheHitRate || 0) * 100).toFixed(0)}%`, sub: `${fmt(t.totalCacheReadTokens || 0)} tokens served from cache`,
-      tip: 'The percentage of input tokens that were served from cache.', double: true },
+      tip: '<div style="margin-bottom:6px">The percentage of input that was discounted.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> A hit rate above 80% means most of your payload is identical to the previous message, granting massive savings.</div>' },
     { label: 'Cache Savings', value: '$' + (t.cacheSavings || 0).toFixed(2), sub: `Estimated API-equivalent savings`,
-      tip: 'How much money caching saved you compared to processing those tokens natively.', double: true },
+      tip: '<div style="margin-bottom:6px">Money saved by Prompt Caching.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> Cached Tokens × (Full Input Price - Discounted Cache Price). Without this, your bill would be much higher!</div>' },
     { label: 'Projected Monthly', value: '$' + (t.projectedMonthlyCost || 0).toFixed(2), sub: `Current Month: $${(t.costThisMonth || 0).toFixed(2)}`,
-      tip: 'Based on your usage this month, what you are projected to spend.' },
-    { label: 'Week-over-week', value: (DATA.insights?.find(i => i.id === 'week-over-week')?.stat || 'N/A'), sub: `Change from last week`,
-      tip: 'How your usage compares to last week.' },
+      tip: '<div style="margin-bottom:6px">Estimated standard 30-day pacing.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> (Cost This Month ÷ Current Active Day) × Total Days in Month.</div>' },
+    { label: 'Week-over-week', value: (t.weekOverWeek || 'N/A'), sub: `Cost vs previous 7 days`,
+      tip: '<div style="margin-bottom:6px">Trajectory of your token spending.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> ((Last 7 Days Cost - Prev 7 Days Cost) ÷ Prev 7 Days) × 100.</div>' },
   ];
 
   document.getElementById('statsRow').innerHTML = cards.map((c, i) => `
-    <div class="bento-card bento-stat ${c.double ? 'double' : ''}">
+    <div class="stat-card animate delay-${i + 1}">
       <div class="stat-label has-tooltip">${c.label}<span class="help-icon">?</span><div class="tooltip">${c.tip}</div></div>
       <div class="stat-value">${c.value}</div>
       <div class="stat-sub">${c.sub}</div>
@@ -861,7 +919,7 @@ function renderInsights() {
   document.getElementById('insightsList').innerHTML = insights.map((ins, i) => {
     const detailHtml = ins.description ? `<div class="insight-detail">${escapeHtml(ins.description)}</div>` : '';
     const actionHtml = ins.action ? `<div class="insight-action-tip">${escapeHtml(ins.action)}</div>` : '';
-    return `<div class="insight-card ${ins.type}" onclick="this.classList.toggle('expanded')">
+    return `<div class="insight-card ${ins.type} animate delay-${Math.min(i + 2, 5)}" onclick="this.classList.toggle('expanded')">
       <div class="insight-top">
         <div class="insight-indicator">${emojis[ins.type] || ''}</div>
         <div class="insight-title">${escapeHtml(ins.title)}</div>
@@ -894,24 +952,25 @@ function renderDailyChart() {
     data: {
       labels: labels,
       datasets: [
-        { label: 'Fresh Input', data: freshIn, backgroundColor: '#818CF8', stack: 'Stack 0', borderRadius: 6 },
-        { label: 'Cache Reads', data: cacheRd, backgroundColor: '#FBBF24', stack: 'Stack 0', borderRadius: 6 },
-        { label: 'Reasoning', data: reasoning, backgroundColor: '#C084FC', stack: 'Stack 0', borderRadius: 6 },
-        { label: 'Output', data: output, backgroundColor: '#2DD4BF', stack: 'Stack 0', borderRadius: 6 }
+        { label: 'Fresh Input', data: freshIn, backgroundColor: '#6366F1', stack: 'Stack 0', borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 4, bottomRight: 4 }, borderSkipped: false },
+        { label: 'Cache Reads', data: cacheRd, backgroundColor: '#F59E0B', stack: 'Stack 0', borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 4, bottomRight: 4 }, borderSkipped: false },
+        { label: 'Reasoning', data: reasoning, backgroundColor: '#A855F7', stack: 'Stack 0', borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 4, bottomRight: 4 }, borderSkipped: false },
+        { label: 'Output', data: output, backgroundColor: '#14B8A6', stack: 'Stack 0', borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 4, bottomRight: 4 }, borderSkipped: false }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          mode: 'index',
-          intersect: false,
+          backgroundColor: '#0F172A',
+          padding: 12,
+          bodyFont: { family: 'Geist', size: 13 },
+          titleFont: { family: 'Geist', size: 14 },
           callbacks: {
-            label: function(context) {
-              return context.dataset.label + ': ' + fmt(context.parsed.y);
-            }
+            label: function(context) { return context.dataset.label + ': ' + fmt(context.parsed.y); }
           }
         }
       },
@@ -919,15 +978,16 @@ function renderDailyChart() {
         x: { 
           stacked: true, 
           grid: { display: false }, 
-          ticks: { color: 'rgba(255,255,255,0.4)', font: { family: 'Inter', weight: 600, size: 11 }, maxRotation: 45, minRotation: 45 } 
+          ticks: { font: { family: 'Geist', size: 12 }, color: '#64748B', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+          border: { display: false }
         },
         y: {
           stacked: true,
           beginAtZero: true,
-          grid: { color: 'rgba(255,255,255,0.05)' },
+          grid: { color: '#F8FAFC', drawBorder: false },
+          border: { display: false },
           ticks: {
-            color: 'rgba(255,255,255,0.4)',
-            font: { family: 'Inter', weight: 600, size: 11 },
+            font: { family: 'Geist', size: 11 }, color: '#94A3B8',
             callback: function(value) { return fmt(value); }
           }
         }
@@ -947,15 +1007,10 @@ function renderModelChart() {
   const slices = [...data].sort((a, b) => b.totalTokens - a.totalTokens);
   const total = slices.reduce((s, d) => s + d.totalTokens, 0);
   
-  const modelColors = { 
-    '5.3': '#818CF8', // Neon Indigo
-    '5.2': '#34D399', // Neon Emerald
-    'max': '#FBBF24', // Neon Amber
-    'mini': '#FB7185' // Neon Rose
-  };
+  const modelColors = { '5.3': '#6366F1', '5.2': '#10B981', 'max': '#F59E0B', 'mini': '#EC4899' };
   const getColors = (m) => {
     for (const [k, c] of Object.entries(modelColors)) { if (m.toLowerCase().includes(k)) return c; }
-    return '#64748B'; // Slate-500
+    return '#94A3B8';
   };
   
   modelChartInstance = new Chart(canvas, {
@@ -965,28 +1020,41 @@ function renderModelChart() {
       datasets: [{
         data: slices.map(d => d.totalTokens),
         backgroundColor: slices.map(d => getColors(d.model)),
-        borderWidth: 3,
-        borderColor: '#111111',
-        hoverOffset: 12
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        hoverOffset: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '72%',
-      plugins: { legend: { display: false } }
+      cutout: '80%', // Thinner, extremely elegant ring
+      plugins: { 
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0F172A',
+          padding: 12,
+          bodyFont: { family: 'Geist', size: 13 },
+          titleFont: { family: 'Geist', size: 14 }
+        }
+      }
     },
     plugins: [{
       id: 'centerText',
       beforeDraw: function(chart) {
         var width = chart.width, height = chart.height, ctx = chart.ctx;
         ctx.save();
-        var fontSize = (height / 110).toFixed(2);
-        ctx.font = "900 " + fontSize + "em Inter, system-ui";
+        var fontSize = Math.min(height / 6, 36); // Re-scaled to be a sensible, elegant size
+        ctx.font = "800 " + fontSize + "px Geist, system-ui";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "#F8FAFC";
+        ctx.fillStyle = "#0F172A";
         var text = fmt(total), textX = Math.round((width - ctx.measureText(text).width) / 2), textY = height / 2;
         ctx.fillText(text, textX, textY);
+        
+        ctx.fillStyle = "#64748B";
+        ctx.font = "600 " + (Math.max(10, fontSize * 0.35)) + "px Geist, system-ui";
+        var subText = "Tokens", subX = Math.round((width - ctx.measureText(subText).width) / 2), subY = height / 2 + (fontSize * 0.8);
+        ctx.fillText(subText, subX, subY);
         ctx.restore();
       }
     }]
@@ -1097,14 +1165,15 @@ function renderTopPrompts() {
   const maxTokens = prompts[0].totalTokens;
 
   document.getElementById('topPromptsList').innerHTML = prompts.map((p, i) => {
-    const freshIn = p.inputTokens + (p.cacheCreationTokens || 0);
+    const freshIn = Math.max(0, p.inputTokens - (p.cacheReadTokens || 0));
     const cached = p.cacheReadTokens || 0;
     const reasoning = p.reasoningTokens || 0;
-    const total = freshIn + cached + p.outputTokens;
+    const output = p.outputTokens || 0;
+    const total = freshIn + cached + reasoning + output;
     const freshPct = total > 0 ? (freshIn / total) * 100 : 0;
     const cachePct = total > 0 ? (cached / total) * 100 : 0;
     const reasonPct = total > 0 ? (reasoning / total) * 100 : 0;
-    const outPct = total > 0 ? ((p.outputTokens - reasoning) / total) * 100 : 0;
+    const outPct = total > 0 ? (output / total) * 100 : 0;
     return `<div class="prompt-row" onclick="openDrilldown('${p.sessionId}')">
       <div class="prompt-rank">${i + 1}</div>
       <div>
@@ -1118,8 +1187,8 @@ function renderTopPrompts() {
         </div>
       </div>
       <div class="prompt-tokens">
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--indigo)">${fmt(p.totalTokens)}</div>
-        <div class="sub">${fmt(freshIn)} in / ${fmt(cached)} cached / ${fmt(reasoning)} rsn / ${fmt(p.outputTokens)} out</div>
+        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--indigo)">${fmt(total)}</div>
+        <div class="sub">${fmt(freshIn)} in / ${fmt(cached)} cached / ${fmt(reasoning)} rsn / ${fmt(output)} out</div>
       </div>
     </div>`;
   }).join('');
@@ -1138,7 +1207,7 @@ function renderSessions() {
   }
 
   const sortFns = {
-    date: (a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''),
+    date: (a, b) => (a.createdAt || 0) - (b.createdAt || 0),
     prompt: (a, b) => a.firstPrompt.localeCompare(b.firstPrompt),
     model: (a, b) => a.model.localeCompare(b.model),
     reasoning_level: (a, b) => (a.reasoningLevel || '').localeCompare(b.reasoningLevel || ''),
@@ -1156,12 +1225,14 @@ function renderSessions() {
   document.getElementById('sessionsBody').innerHTML = sessions.map(s => `
     <tr onclick="openDrilldown('${s.sessionId}')">
       <td class="date-cell">
-        ${formatDate(s.date)}
-        <span class="project-tag" title="${escapeHtml(projectShort(s.project))}">${escapeHtml(projectShort(s.project))}</span>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-weight: 600; color: var(--text);">${formatDate(s.date)}</span>
+          <span class="project-tag" title="${escapeHtml(projectShort(s.project))}">${escapeHtml(projectShort(s.project))}</span>
+        </div>
       </td>
       <td><div class="prompt-preview" title="${escapeHtml(s.firstPrompt)}">${escapeHtml(s.firstPrompt)}</div></td>
       <td><span class="model-badge ${modelClass(s.model)}"><span class="model-dot"></span>${modelShort(s.model)}</span></td>
-      <td><span style="font-size: 13px; font-weight: 500; text-transform: capitalize; color: var(--text-secondary);">${s.reasoningLevel === 'xhigh' ? 'Very High' : s.reasoningLevel || 'None'}</span></td>
+      <td><span style="font-size: 13px; font-weight: 500; text-transform: capitalize; color: var(--text-secondary);">${s.reasoningLevel === 'very_high' ? 'Very High' : s.reasoningLevel || 'None'}</span></td>
       <td class="token-num">${s.queryCount}</td>
       <td class="token-num" style="font-weight:700">${fmt(s.totalTokens)}</td>
       <td class="token-num">${fmt(s.inputTokens)}</td>
@@ -1206,8 +1277,8 @@ function openDrilldown(sessionId) {
         prompt: q.userPrompt,
         inputTokens: q.inputTokens,
         outputTokens: q.outputTokens,
-        cacheCreationTokens: q.cacheCreationTokens || 0,
-        cacheReadTokens: q.cacheReadTokens || 0,
+        cacheReadTokens: q.cachedTokens || 0,
+        reasoningTokens: q.reasoningTokens || 0,
         totalTokens: q.totalTokens,
         cost: q.cost || 0,
         continuations: 0,
@@ -1215,8 +1286,8 @@ function openDrilldown(sessionId) {
     } else if (current) {
       current.inputTokens += q.inputTokens;
       current.outputTokens += q.outputTokens;
-      current.cacheCreationTokens += (q.cacheCreationTokens || 0);
-      current.cacheReadTokens += (q.cacheReadTokens || 0);
+      current.cacheReadTokens += (q.cachedTokens || 0);
+      current.reasoningTokens += (q.reasoningTokens || 0);
       current.totalTokens += q.totalTokens;
       current.cost += (q.cost || 0);
       current.continuations++;
@@ -1232,7 +1303,7 @@ function openDrilldown(sessionId) {
       <div class="query-prompt">${escapeHtml(q.prompt.substring(0, 500))}</div>
       <div class="query-tokens-col">
         <div class="total">${fmt(q.totalTokens)}</div>
-        <div class="detail">${fmt(q.inputTokens)} in / ${fmt(cached)} cached / ${fmt(q.outputTokens)} out${cont}</div>
+        <div class="detail">${fmt(q.inputTokens)} in / ${fmt(cached)} cached / ${fmt(q.reasoningTokens)} rsn / ${fmt(q.outputTokens)} out${cont}</div>
       </div>
     </div>`;
   }).join('');
