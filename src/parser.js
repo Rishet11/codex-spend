@@ -615,7 +615,7 @@ function generateInsights(sessions, allPrompts, totals) {
   if (sessionsWithDuration.length > 0) {
     let topBurners = sessionsWithDuration.map(s => {
       const mins = parseFloat(s.duration);
-      return { session: s, burnRate: Math.round(s.totalTokens / mins) };
+      return { session: s, burnRate: Math.round(s.totalTokens / mins), costRate: s.totalCost / mins };
     }).sort((a, b) => b.burnRate - a.burnRate);
     
     // Only show if the burn rate is actually somewhat high (>10k per minute)
@@ -626,8 +626,8 @@ function generateInsights(sessions, allPrompts, totals) {
       insights.push({
         id: 'token-burn-rate',
         type: 'warning',
-        title: `Fastest Token Burn: ${fmt(top.burnRate)} tokens per minute`,
-        description: `Your highest token burn rate was during the conversation "${top.session.firstPrompt.substring(0, 50)}...". Over roughly ${top.session.duration}, you consumed ${fmt(top.session.totalTokens)} tokens, which is ${fmt(top.burnRate)} tokens per minute. High burn rates usually happen when you rapidly fire off messages in a conversation that already has a massive context history.`,
+        title: `Fastest Token Burn: ${fmt(top.burnRate)} tokens/min (~$${top.costRate.toFixed(2)}/min)`,
+        description: `Your highest token burn rate was during the conversation "${top.session.firstPrompt.substring(0, 50)}...". Over roughly ${top.session.duration}, you consumed ${fmt(top.session.totalTokens)} tokens, which is ${fmt(top.burnRate)} tokens (or ~$${top.costRate.toFixed(2)}) per minute. High burn rates usually happen when you rapidly fire off messages in a conversation that already has a massive context history.`,
         action: 'When you are iteratively debugging (sending rapid short messages back and forth), consider starting a fresh conversation with just the relevant context. This resets the "baggage" that gets re-read every time you hit enter.',
       });
     }
@@ -720,6 +720,7 @@ function generateInsights(sessions, allPrompts, totals) {
   // 7. Night Owl / Time-of-Day Habits
   if (totals.totalTokens > 0 && sessions.length > 5) {
     let lateNightTokens = 0;
+    let lateNightCost = 0;
     let totalTimeTokens = 0;
     sessions.forEach(s => {
       const ts = s.createdAt || s.updatedAt;
@@ -729,6 +730,7 @@ function generateInsights(sessions, allPrompts, totals) {
         totalTimeTokens += s.totalTokens;
         if (hour >= 22 || hour < 4) { // 10 PM to 4 AM
           lateNightTokens += s.totalTokens;
+          lateNightCost += s.totalCost;
         }
       }
     });
@@ -739,8 +741,8 @@ function generateInsights(sessions, allPrompts, totals) {
         insights.push({
           id: 'night-owl',
           type: 'info',
-          title: `You are a Night Owl! (${nightPct.toFixed(0)}% late-night usage)`,
-          description: `Most of your heavy lifting happens when the sun goes down. Exactly ${nightPct.toFixed(0)}% of your total Codex token usage (${fmt(lateNightTokens)} tokens) happens between 10:00 PM and 4:00 AM.`,
+          title: `You are a Night Owl! (${nightPct.toFixed(0)}% late-night usage / $${lateNightCost.toFixed(2)})`,
+          description: `Most of your heavy lifting happens when the sun goes down. Exactly ${nightPct.toFixed(0)}% of your total Codex token usage (${fmt(lateNightTokens)} tokens, costing $${lateNightCost.toFixed(2)}) happens between 10:00 PM and 4:00 AM.`,
           action: `Late night coding sessions can lead to marathon context windows. Remember to start fresh conversations if you switch topics deep into the night to avoid dragging huge memory payloads.`,
         });
       }
