@@ -225,6 +225,13 @@ function extractSessionData(entries) {
   return queries;
 }
 
+function calculateCost(model, inputTokens, cachedTokens, outputTokens, reasoningTokens) {
+  const pricing = getPricing(model);
+  if (pricing.unknown) return 0;
+  const uncached = Math.max(0, inputTokens - cachedTokens);
+  return (uncached * pricing.input) + (cachedTokens * pricing.cacheRead) + (outputTokens * pricing.output) + ((reasoningTokens || 0) * pricing.reasoningResult);
+}
+
 async function parseAllSessions() {
   const codexDir = getCodexDir();
   const dbPath = path.join(codexDir, 'state_5.sqlite');
