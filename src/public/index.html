@@ -712,7 +712,7 @@
     ⚠️ Some models have unknown pricing. Estimated costs may be lower than actual.
   </div>
 
-  <div id="totalsScope" class="date-range" style="display:inline-flex; margin-bottom: 12px;">Totals: All-time</div>
+  <div id="totalsScope" class="date-range" style="display:inline-flex; margin-bottom: 12px;">Total (All Time)</div>
 
   <!-- Stats -->
   <div class="stats-row" id="statsRow"></div>
@@ -1029,7 +1029,7 @@ function renderStats() {
   const t = DATA.totals;
   const range = t.dateRange ? `${formatDate(t.dateRange.from)} - ${formatDate(t.dateRange.to)}` : '';
   document.getElementById('dateRange').textContent = range ? `Chart window (Last 30 days): ${range}` : 'Chart window (Last 30 days)';
-  document.getElementById('totalsScope').textContent = 'Totals: All-time';
+  document.getElementById('totalsScope').textContent = 'Total (All Time)';
 
   const cacheTotal = t.totalCacheReadTokens || 0;
   const uncachedInput = Math.max(0, (t.totalInputTokens || 0) - cacheTotal);
