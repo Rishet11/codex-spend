@@ -13,23 +13,34 @@ Usage:
 
 Options:
   --port <port>   Port to run dashboard on (default: 4321)
+  --state-db <path>  Override Codex state DB path (advanced)
   --no-open       Don't auto-open browser
   --help, -h      Show this help message
 
 Examples:
   npx codex-spend          Open dashboard in browser
   codex-spend --port 8080  Use custom port
+  codex-spend --state-db ~/.codex/state_6.sqlite
 `);
   process.exit(0);
 }
 
 const portIndex = args.indexOf('--port');
 const port = portIndex !== -1 ? parseInt(args[portIndex + 1], 10) : 4321;
+const stateDbIndex = args.indexOf('--state-db');
+const stateDbPath = stateDbIndex !== -1 ? args[stateDbIndex + 1] : null;
 const noOpen = args.includes('--no-open');
 
 if (isNaN(port)) {
   console.error('Error: --port must be a number');
   process.exit(1);
+}
+if (stateDbIndex !== -1 && (!stateDbPath || stateDbPath.startsWith('--'))) {
+  console.error('Error: --state-db must be a file path');
+  process.exit(1);
+}
+if (stateDbPath) {
+  process.env.CODEX_SPEND_STATE_DB = stateDbPath;
 }
 
 const app = createServer();
@@ -41,7 +52,8 @@ const server = app.listen(port, '127.0.0.1', async () => {
     const { parseAllSessions } = require('./src/parser');
     const data = await parseAllSessions();
     if (data && data.sessions && data.sessions.length > 0) {
-      console.log('\\n==========================================================================================================================');
+      console.log('');
+      console.log('==========================================================================================================================');
       console.log('       💰 Codex Spend Summary (Recent Sessions)');
       console.log('==========================================================================================================================');
       
@@ -111,7 +123,8 @@ const server = app.listen(port, '127.0.0.1', async () => {
       if (t.hasUnknownPricing) {
         console.log('⚠️ WARNING: Some models have unknown pricing.');
       }
-      console.log(headerSep + '\\n');
+      console.log(headerSep);
+      console.log('');
     }
   } catch (err) {
     // Ignore parsing errors on boot, the UI will surface them
@@ -139,7 +152,8 @@ server.on('error', (err) => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n  Shutting down...');
+  console.log('');
+  console.log('  Shutting down...');
   server.close();
   process.exit(0);
 });

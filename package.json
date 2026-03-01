@@ -1,6 +1,6 @@
 {
   "name": "codex-spend",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "See where your OpenAI Codex tokens go. One command, zero setup.",
   "main": "index.js",
   "bin": {
@@ -34,7 +34,7 @@
   "homepage": "https://github.com/Rishet11/codex-spend#readme",
   "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "dependencies": {
     "express": "^5.2.1",

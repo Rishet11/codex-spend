@@ -69,6 +69,7 @@
     border-radius: 50%; animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeBackdrop { from { opacity: 0; } to { opacity: 1; } }
   .loading-text { color: var(--text-secondary); font-size: 15px; font-weight: 500; }
 
   /* Layout */
@@ -359,6 +360,28 @@
     letter-spacing: -0.5px;
   }
   .prompt-tokens .sub { font-size: 11px; color: var(--text-tertiary); font-weight: 500; margin-top: 2px; }
+  .leaderboard-toggle { display: inline-flex; gap: 8px; margin-left: auto; }
+  .leaderboard-toggle-btn {
+    border: 1px solid var(--border);
+    background: var(--white);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+  }
+  .leaderboard-toggle-btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .leaderboard-toggle-btn.active {
+    border-color: var(--indigo);
+    color: var(--indigo);
+    background: #EEF2FF;
+  }
 
   /* ---- PROJECTS ---- */
   .projects-section { margin-bottom: 32px; }
@@ -508,12 +531,41 @@
   }
 
   /* ---- DRILLDOWN ---- */
-  .drilldown {
-    background: var(--white); border-radius: var(--radius);
-    padding: 28px; margin-bottom: 32px; display: none;
-    border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  .drilldown-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    padding: 32px 20px;
+    z-index: 40;
   }
-  .drilldown.open { display: block; animation: fadeUp 0.3s ease-out; }
+  .drilldown-backdrop.open {
+    display: flex;
+    animation: fadeBackdrop 0.3s ease-out;
+  }
+  .drilldown {
+    width: min(960px, 100%);
+    max-height: calc(100vh - 120px);
+    overflow: hidden;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    padding: 28px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  .drilldown.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
   .drilldown-header {
     display: flex; align-items: flex-start; justify-content: space-between;
     margin-bottom: 24px; gap: 16px;
@@ -527,6 +579,42 @@
     flex-shrink: 0; transition: all 0.15s;
   }
   .drilldown-close:hover { background: #EEF2FF; color: var(--indigo); }
+
+  .drilldown-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .drilldown-toolbar-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .drilldown-sort-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .drilldown-sort-select {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    background: var(--white);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 190px;
+  }
+  .drilldown-sort-note {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.01em;
+  }
 
   .query-list { display: flex; flex-direction: column; gap: 8px; }
   .query-item {
@@ -624,6 +712,8 @@
     ⚠️ Some models have unknown pricing. Estimated costs may be lower than actual.
   </div>
 
+  <div id="totalsScope" class="date-range" style="display:inline-flex; margin-bottom: 12px;">Totals: All-time</div>
+
   <!-- Stats -->
   <div class="stats-row" id="statsRow"></div>
 
@@ -641,7 +731,7 @@
   <!-- Charts -->
   <div class="charts-grid">
     <div class="chart-card">
-      <h3 class="has-tooltip has-tooltip-below" style="display:inline-block">Tokens per Day<div class="tooltip">How many tokens you used each day. Indigo = fresh input + cache writes (full price), amber = cache reads (10x cheaper), purple = reasoning logic, teal = Codex output.</div></h3>
+      <h3 class="has-tooltip has-tooltip-below" style="display:inline-block">Tokens per Day (Last 30 days)<div class="tooltip">How many tokens you used each day in the last 30 days. Indigo = fresh input + cache writes (full price), amber = cache reads (10x cheaper), purple = reasoning logic, teal = Codex output.</div></h3>
       <div class="chart-canvas-wrapper">
         <canvas id="dailyChart"></canvas>
       </div>
@@ -686,7 +776,7 @@
             <th data-sort="project">Project</th>
             <th data-sort="total">Tokens Used</th>
             <th data-sort="sessions">Sessions</th>
-            <th data-sort="queries">Messages</th>
+            <th data-sort="queries">Prompt Turns</th>
           </tr>
         </thead>
         <tbody id="projectsBody"></tbody>
@@ -694,27 +784,51 @@
     </div>
   </div>
 
-  <!-- Most Expensive Prompts -->
+  <!-- Prompt Leaderboards -->
   <div class="top-prompts">
     <div class="section-header">
       <div class="section-icon" style="background:#E0E7FF">
         <svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
       </div>
-      <div class="section-title has-tooltip has-tooltip-below" style="display:inline-flex">Most Expensive Prompts<div class="tooltip">Your top 20 individual messages ranked by how many tokens they used. Short vague messages like "Yes" often rank highest because they trigger long chains of tool calls where Claude tries to figure out what you meant.</div></div>
+      <div class="section-title">Prompt Leaderboards</div>
+      <div class="leaderboard-toggle">
+        <button id="leaderboardCostBtn" class="leaderboard-toggle-btn active" onclick="setPromptLeaderboardView('cost')">Most Expensive (by cost)</button>
+        <button id="leaderboardTokensBtn" class="leaderboard-toggle-btn" onclick="setPromptLeaderboardView('tokens')">Most Tokens Used</button>
+      </div>
     </div>
-    <div class="prompts-card" id="topPromptsList"></div>
+    <div id="topPromptsCostCard" class="prompts-card" title="Top 20 individual prompt turns ranked by estimated dollar cost." style="display:block">
+      <div id="topPromptsCostList"></div>
+    </div>
+    <div id="topPromptsTokensCard" class="prompts-card" title="Top 20 individual prompt turns ranked by total tokens consumed." style="display:none">
+      <div id="topPromptsTokensList"></div>
+    </div>
   </div>
 
-  <!-- Drill-down -->
-  <div id="drilldown" class="drilldown">
-    <div class="drilldown-header">
-      <div>
-        <div id="drilldownTitle" class="drilldown-title"></div>
-        <div id="drilldownMeta" class="drilldown-meta"></div>
+  <!-- Drill-down modal -->
+  <div id="drilldownBackdrop" class="drilldown-backdrop" aria-hidden="true">
+    <div id="drilldown" class="drilldown" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="drilldown-header">
+        <div>
+          <div id="drilldownTitle" class="drilldown-title"></div>
+          <div id="drilldownMeta" class="drilldown-meta"></div>
+        </div>
+        <button class="drilldown-close" onclick="closeDrilldown()">&times;</button>
       </div>
-      <button class="drilldown-close" onclick="closeDrilldown()">&times;</button>
+      <div class="drilldown-toolbar">
+        <label class="drilldown-toolbar-label" for="drilldownSortSelect">Sort by</label>
+        <div class="drilldown-sort-group">
+          <select id="drilldownSortSelect" class="drilldown-sort-select">
+            <option value="chronological">Oldest first</option>
+            <option value="reverse_chronological">Newest first</option>
+            <option value="most_tokens">Most tokens</option>
+            <option value="least_tokens">Least tokens</option>
+            <option value="most_cached">Most cached reads</option>
+          </select>
+          <span id="drilldownSortNote" class="drilldown-sort-note">Oldest prompts first</span>
+        </div>
+      </div>
+      <div id="queryList" class="query-list"></div>
     </div>
-    <div id="queryList" class="query-list"></div>
   </div>
 
   <!-- All Sessions -->
@@ -737,11 +851,11 @@
             <th class="col-prompt" data-sort="prompt">What you asked</th>
             <th class="col-model" data-sort="model"><span class="has-tooltip has-tooltip-below">Model<div class="tooltip">Which AI model was used. OpenAI Codex models have different prices and capabilities.</div></span></th>
             <th class="col-reasoning" data-sort="reasoning_level"><span class="has-tooltip has-tooltip-below">Reasoning Level<div class="tooltip">The selected reasoning effort for this session (e.g. Low, Medium, High).</div></span></th>
-            <th class="col-nums" data-sort="queries" style="text-align:right"><span class="has-tooltip has-tooltip-below">Messages<div class="tooltip">How many back-and-forth messages happened in this conversation, including automatic tool calls OpenAI Codex made.</div></span></th>
-            <th class="col-nums" data-sort="total" style="text-align:right" class="sorted"><span class="has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></span></th>
+            <th class="col-nums" data-sort="queries" style="text-align:right"><span class="has-tooltip has-tooltip-below">Prompt Turns<div class="tooltip">Count of your prompt turns in this conversation. Tool activity is tracked separately.</div></span></th>
             <th class="col-nums" data-sort="input" style="text-align:right"><span class="has-tooltip has-tooltip-below">Read<div class="tooltip">Tokens Codex read: your messages, the conversation history, files, and system context. This grows with each message because the full history gets re-sent.</div></span></th>
             <th class="col-nums" data-sort="reasoning" style="text-align:right"><span class="has-tooltip has-tooltip-below">Reasoning<div class="tooltip">Tokens Codex used specifically to "think" out loud before returning its final output to you.</div></span></th>
             <th class="col-nums" data-sort="output" style="text-align:right"><span class="has-tooltip has-tooltip-below">Written<div class="tooltip">Tokens Codex wrote back: responses, code, explanations. Usually a small fraction of the total.</div></span></th>
+            <th class="col-nums" data-sort="total" style="text-align:right" class="sorted"><span class="has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></span></th>
           </tr>
         </thead>
         <tbody id="sessionsBody"></tbody>
@@ -761,6 +875,29 @@ let currentSort = { key: 'total', dir: 'desc' };
 let searchQuery = '';
 let dailyChartInstance = null;
 let modelChartInstance = null;
+let drilldownSortKey = 'chronological';
+let activeDrilldownSessionId = null;
+let drilldownLoadRequestId = 0;
+let promptLeaderboardView = 'cost';
+const drilldownBackdrop = document.getElementById('drilldownBackdrop');
+const drilldownSortSelect = document.getElementById('drilldownSortSelect');
+const drilldownSortNote = document.getElementById('drilldownSortNote');
+const drilldownSortHints = {
+  chronological: 'Oldest prompts first',
+  reverse_chronological: 'Newest prompts first',
+  most_tokens: 'Largest token usage first',
+  least_tokens: 'Smallest token usage first',
+  most_cached: 'Highest cache hits first',
+};
+function updateDrilldownSortHint() {
+  if (!drilldownSortNote) return;
+  drilldownSortNote.textContent = drilldownSortHints[drilldownSortKey] || '';
+}
+if (drilldownBackdrop) {
+  drilldownBackdrop.addEventListener('click', e => {
+    if (e.target === drilldownBackdrop) closeDrilldown();
+  });
+}
 
 function fmt(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -845,6 +982,18 @@ function showError(msg) {
     '<p style="color:#64748b;margin:0 0 20px;line-height:1.6">' + msg.replace(/</g, '&lt;') + '</p>' +
     '<button onclick="location.reload()" style="padding:8px 20px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:14px">Retry</button>';
 }
+
+function setPromptLeaderboardView(view) {
+  promptLeaderboardView = view === 'tokens' ? 'tokens' : 'cost';
+  const costCard = document.getElementById('topPromptsCostCard');
+  const tokensCard = document.getElementById('topPromptsTokensCard');
+  const costBtn = document.getElementById('leaderboardCostBtn');
+  const tokensBtn = document.getElementById('leaderboardTokensBtn');
+  if (costCard) costCard.style.display = promptLeaderboardView === 'cost' ? 'block' : 'none';
+  if (tokensCard) tokensCard.style.display = promptLeaderboardView === 'tokens' ? 'block' : 'none';
+  if (costBtn) costBtn.classList.toggle('active', promptLeaderboardView === 'cost');
+  if (tokensBtn) tokensBtn.classList.toggle('active', promptLeaderboardView === 'tokens');
+}
 async function refreshData(silent = false) {
   if (!silent) {
     document.getElementById('loading').style.display = 'flex';
@@ -871,7 +1020,7 @@ function render() {
   renderDailyChart();
   renderModelChart();
   renderProjectBreakdown();
-  renderTopPrompts();
+  renderPromptLeaderboards();
   renderSessions();
 }
 
@@ -879,7 +1028,8 @@ function render() {
 function renderStats() {
   const t = DATA.totals;
   const range = t.dateRange ? `${formatDate(t.dateRange.from)} - ${formatDate(t.dateRange.to)}` : '';
-  document.getElementById('dateRange').textContent = range;
+  document.getElementById('dateRange').textContent = range ? `Chart window (Last 30 days): ${range}` : 'Chart window (Last 30 days)';
+  document.getElementById('totalsScope').textContent = 'Totals: All-time';
 
   const cacheTotal = t.totalCacheReadTokens || 0;
   const uncachedInput = Math.max(0, (t.totalInputTokens || 0) - cacheTotal);
@@ -893,8 +1043,8 @@ function renderStats() {
       tip: '<div style="margin-bottom:6px">The estimated dollar cost of your local usage.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Math:</b> Calculated per message by multiplying tokens by their specific model pricing tier.</div>' },
     { label: 'Conversations', value: fmtFull(t.totalSessions), sub: `Each one used ~${fmt(t.avgTokensPerSession)} tokens on average`,
       tip: '<div style="margin-bottom:6px">A continuous thread with Codex.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> The high average size proves how much files and history your IDE bundles as the conversation builds up.</div>' },
-    { label: 'Messages Sent', value: fmtFull(t.totalQueries), sub: `Each message used ~${fmt(avgTokensPerMsg)} tokens on average`,
-      tip: '<div style="margin-bottom:6px">Individual prompts sent to the model.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> Every time you hit enter, your IDE automatically bundles open files and history into a massive payload.</div>' },
+    { label: 'Prompt Turns', value: fmtFull(t.totalQueries), sub: `Each turn used ~${fmt(avgTokensPerMsg)} tokens on average`,
+      tip: '<div style="margin-bottom:6px">Count of your prompt turns sent to the model.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Note:</b> This does not directly count internal tool activity.</div>' },
     { label: 'Reasoning Effort', value: fmt(t.totalReasoningTokens || 0), sub: `Tokens used for internal AI logic`,
       tip: '<div style="margin-bottom:6px">Invisible "thought process" tokens.</div><div style="font-size:12px;opacity:0.8"><b style="opacity:1;font-weight:600">Context:</b> Models process complex logic before answering. These hidden tokens cost the exact same as Written output.</div>' },
     { label: 'Cache Hit Rate', value: `${((t.cacheHitRate || 0) * 100).toFixed(0)}%`, sub: `${fmt(t.totalCacheReadTokens || 0)} tokens served from cache`,
@@ -1169,13 +1319,14 @@ function renderProjectBreakdown() {
   document.getElementById('projectsBody').innerHTML = rows.join('');
 }
 
-// Top prompts
-function renderTopPrompts() {
-  const prompts = DATA.topPrompts;
-  if (!prompts.length) return;
+function renderPromptRows(prompts, targetId, rankingLabel) {
+  if (!prompts.length) {
+    document.getElementById(targetId).innerHTML = '';
+    return;
+  }
   const maxTokens = prompts[0].totalTokens;
 
-  document.getElementById('topPromptsList').innerHTML = prompts.map((p, i) => {
+  document.getElementById(targetId).innerHTML = prompts.map((p, i) => {
     const freshIn = Math.max(0, p.inputTokens - (p.cacheReadTokens || 0));
     const cached = p.cacheReadTokens || 0;
     const reasoning = p.reasoningTokens || 0;
@@ -1198,11 +1349,20 @@ function renderTopPrompts() {
         </div>
       </div>
       <div class="prompt-tokens">
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--indigo)">${fmt(total)}</div>
-        <div class="sub">${fmt(freshIn)} in / ${fmt(cached)} cached / ${fmt(reasoning)} rsn / ${fmt(output)} out</div>
+        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--indigo)">${rankingLabel === 'cost' ? '$' + (p.cost || 0).toFixed(2) : fmt(total)}</div>
+        <div class="sub">${rankingLabel === 'cost' ? fmt(total) + ' tokens total' : fmt(freshIn) + ' in / ' + fmt(cached) + ' cached / ' + fmt(reasoning) + ' rsn / ' + fmt(output) + ' out'}</div>
       </div>
     </div>`;
   }).join('');
+}
+
+// Top prompt leaderboards
+function renderPromptLeaderboards() {
+  const byCost = DATA.topPromptsByCost || [];
+  const byTokens = DATA.topPromptsByTokens || DATA.topPrompts || [];
+  renderPromptRows(byCost, 'topPromptsCostList', 'cost');
+  renderPromptRows(byTokens, 'topPromptsTokensList', 'tokens');
+  setPromptLeaderboardView(promptLeaderboardView);
 }
 
 // Sessions
@@ -1245,10 +1405,10 @@ function renderSessions() {
       <td class="col-model"><span class="model-badge ${modelClass(s.model)}"><span class="model-dot"></span>${modelShort(s.model)}</span></td>
       <td class="col-reasoning"><span style="font-size: 13px; font-weight: 500; text-transform: capitalize; color: var(--text-secondary);">${s.reasoningLevel === 'very_high' ? 'Very High' : s.reasoningLevel || 'None'}</span></td>
       <td class="token-num col-nums">${s.queryCount}</td>
-      <td class="token-num col-nums" style="font-weight:700">${fmt(s.totalTokens)}</td>
       <td class="token-num col-nums">${fmt(s.inputTokens)}</td>
       <td class="token-num col-nums">${fmt(s.reasoningTokens || 0)}</td>
       <td class="token-num col-nums">${fmt(s.outputTokens)}</td>
+      <td class="token-num col-nums" style="font-weight:700">${fmt(s.totalTokens)}</td>
     </tr>
   `).join('');
 }
@@ -1270,34 +1430,11 @@ document.getElementById('searchInput').addEventListener('input', e => {
   renderSessions();
 });
 
-// Drill-down
-async function openDrilldown(sessionId) {
-  const session = DATA.sessions.find(s => s.sessionId === sessionId);
-  if (!session) return;
-
-  document.getElementById('drilldownTitle').textContent = session.firstPrompt.substring(0, 140);
-  document.getElementById('drilldownMeta').textContent =
-    `${formatDate(session.date)} \u00B7 ${modelShort(session.model)} \u00B7 ${session.queryCount} messages \u00B7 ${fmt(session.totalTokens)} tokens`;
-
-  const panel = document.getElementById('drilldown');
-  panel.classList.add('open');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  if (!session.queries || session.queries.length === 0) {
-    document.getElementById('queryList').innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">Loading complete session history...</div>';
-    try {
-      const res = await fetch('/api/session/' + sessionId);
-      const fullSession = await res.json();
-      session.queries = fullSession.queries || [];
-    } catch(e) {
-      document.getElementById('queryList').innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Failed to load session history.</div>';
-      return;
-    }
-  }
-
+function getGroupedQueries(session) {
   const grouped = [];
   let current = null;
-  for (const q of session.queries) {
+  let orderCounter = 0;
+  for (const q of session.queries || []) {
     if (q.userPrompt) {
       if (current) grouped.push(current);
       current = {
@@ -1309,6 +1446,7 @@ async function openDrilldown(sessionId) {
         totalTokens: q.totalTokens,
         cost: q.cost || 0,
         continuations: 0,
+        orderIndex: orderCounter++,
       };
     } else if (current) {
       current.inputTokens += q.inputTokens;
@@ -1321,23 +1459,123 @@ async function openDrilldown(sessionId) {
     }
   }
   if (current) grouped.push(current);
+  return grouped;
+}
 
-  document.getElementById('queryList').innerHTML = grouped.map((q, i) => {
-    const cont = q.continuations > 0 ? ` + ${q.continuations} tool uses` : '';
-    const cached = q.cacheReadTokens || 0;
-    return `<div class="query-item">
-      <div class="query-num">${i + 1}</div>
-      <div class="query-prompt">${escapeHtml(q.prompt.substring(0, 500))}</div>
-      <div class="query-tokens-col">
-        <div class="total">${fmt(q.totalTokens)}</div>
-        <div class="detail">${fmt(q.inputTokens)} in / ${fmt(cached)} cached / ${fmt(q.reasoningTokens)} rsn / ${fmt(q.outputTokens)} out${cont}</div>
-      </div>
-    </div>`;
-  }).join('');
+const drilldownSortComparators = {
+  chronological: (a, b) => a.orderIndex - b.orderIndex,
+  reverse_chronological: (a, b) => b.orderIndex - a.orderIndex,
+  most_tokens: (a, b) => b.totalTokens - a.totalTokens,
+  least_tokens: (a, b) => a.totalTokens - b.totalTokens,
+  most_cached: (a, b) => (b.cacheReadTokens || 0) - (a.cacheReadTokens || 0),
+};
+
+function sortDrilldownQueries(items) {
+  const comparator = drilldownSortComparators[drilldownSortKey] || drilldownSortComparators.chronological;
+  return [...items].sort(comparator);
+}
+
+function renderDrilldownQueries(sessionId) {
+  const session = DATA.sessions.find(s => s.sessionId === sessionId);
+  const queryList = document.getElementById('queryList');
+  if (!session || !queryList) return;
+  if (session.queriesLoaded !== true && (!session.queries || session.queries.length === 0)) {
+    queryList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">Loading complete session history...</div>';
+    return;
+  }
+  const grouped = getGroupedQueries(session);
+  const sorted = sortDrilldownQueries(grouped);
+  if (!sorted.length) {
+    queryList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No prompts recorded yet.</div>';
+  } else {
+    queryList.innerHTML = sorted.map((q, i) => {
+      const cont = q.continuations > 0 ? ` + ${q.continuations} tool uses` : '';
+      const cached = q.cacheReadTokens || 0;
+      return `<div class="query-item">
+        <div class="query-num">${i + 1}</div>
+        <div class="query-prompt">${escapeHtml(q.prompt.substring(0, 500))}</div>
+        <div class="query-tokens-col">
+          <div class="total">${fmt(q.totalTokens)}</div>
+          <div class="detail">${fmt(q.inputTokens)} in / ${fmt(cached)} cached / ${fmt(q.reasoningTokens)} rsn / ${fmt(q.outputTokens)} out${cont}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  const panel = document.getElementById('drilldown');
+  if (panel) {
+    panel.scrollTop = 0;
+    panel.focus({ preventScroll: true });
+  }
+  updateDrilldownSortHint();
+}
+
+if (drilldownSortSelect) {
+  drilldownSortSelect.addEventListener('change', () => {
+    drilldownSortKey = drilldownSortSelect.value;
+    updateDrilldownSortHint();
+    if (activeDrilldownSessionId) renderDrilldownQueries(activeDrilldownSessionId);
+  });
+  drilldownSortSelect.value = drilldownSortKey;
+  updateDrilldownSortHint();
+}
+
+// Drill-down
+async function openDrilldown(sessionId) {
+  const session = DATA.sessions.find(s => s.sessionId === sessionId);
+  if (!session) return;
+  const requestId = ++drilldownLoadRequestId;
+
+  if (session.queriesLoaded === undefined) {
+    session.queriesLoaded = Array.isArray(session.queries) && session.queries.length > 0;
+  }
+
+  if (drilldownSortSelect) {
+    drilldownSortSelect.value = drilldownSortKey;
+  }
+  updateDrilldownSortHint();
+  activeDrilldownSessionId = sessionId;
+
+  document.getElementById('drilldownTitle').textContent = session.firstPrompt.substring(0, 140);
+  document.getElementById('drilldownMeta').textContent =
+    `${formatDate(session.date)} · ${modelShort(session.model)} · ${session.queryCount} prompt turns · ${fmt(session.totalTokens)} tokens`;
+
+  const panel = document.getElementById('drilldown');
+  panel.classList.add('open');
+  if (drilldownBackdrop) {
+    drilldownBackdrop.classList.add('open');
+    drilldownBackdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  const queryList = document.getElementById('queryList');
+  if (session.queriesLoaded !== true && (!session.queries || session.queries.length === 0)) {
+    queryList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">Loading complete session history...</div>';
+    try {
+      const res = await fetch('/api/session/' + sessionId);
+      const fullSession = await res.json();
+      session.queries = fullSession.queries || [];
+      session.queriesLoaded = true;
+    } catch(e) {
+      if (requestId !== drilldownLoadRequestId || activeDrilldownSessionId !== sessionId) return;
+      queryList.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Failed to load session history.</div>';
+      return;
+    }
+  }
+
+  if (requestId !== drilldownLoadRequestId || activeDrilldownSessionId !== sessionId) return;
+  renderDrilldownQueries(sessionId);
 }
 
 function closeDrilldown() {
-  document.getElementById('drilldown').classList.remove('open');
+  drilldownLoadRequestId++;
+  const panel = document.getElementById('drilldown');
+  panel.classList.remove('open');
+  if (drilldownBackdrop) {
+    drilldownBackdrop.classList.remove('open');
+    drilldownBackdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  activeDrilldownSessionId = null;
 }
 
 // Live auto-refresh every 30 seconds

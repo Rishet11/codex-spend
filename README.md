@@ -1,53 +1,66 @@
 # 💸 codex-spend
 
-**See where your OpenAI Codex tokens go. One command, zero setup.**
+**See where your OpenAI Codex tokens go. One command.**
 
-`codex-spend` is a beautiful, privacy-first local dashboard that analyzes your OpenAI Codex CLI usage. It runs entirely on your machine, reads your local transaction logs, and visualizes exactly how many tokens you're using, how much they cost, and how you can optimize your usage.
+`codex-spend` is a local dashboard for analyzing OpenAI Codex CLI usage. It parses your local Codex session/state data and visualizes token usage, estimated cost, and patterns that can help reduce spend.
 
-![codex-spend dashboard](https://github.com/user-attachments/assets/demo.png) *(You can add a screenshot here later!)*
+![Codex Spend Dashboard Preview](https://github.com/user-attachments/assets/746d88ae-4f24-42f1-9457-3f33de8e8c89)
 
-## 🚀 Features
+---
 
-- **Privacy First:** Never sends your data anywhere. Runs locally on `http://127.0.0.1` (requires internet access for fonts and charts).
-- **Accurate Billing:** Understands the nuanced OpenAI billing model, including the **90% discount on cached prompts** and the fact that reasoning tokens are billed as output tokens.
-- **Interactive Charts:** Beautiful `Chart.js` visualizations for daily spend and model breakdowns.
-- **Actionable Insights:** Get personalized recommendations based on your usage patterns (e.g., how to maximize cache hits during marathon debugging sessions).
-- **Supports All Codex Models:** Tracks usage across `gpt-5.3-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`, and more.
+## ✨ Features
 
-## 📦 Installation
+- **⚡️ Instant Terminal Summary:** Get a high-level breakdown of your recent sessions directly in your terminal on startup.
+- **🛡️ Local Analyzer:** Your Codex usage data is read locally, and the dashboard runs on `127.0.0.1`.
+- **📈 Usage Analytics:** Visualizations for daily token usage, model breakdowns, and token categories.
+- **💡 Actionable Insights:** identify "One-Word Reply" traps, "Tab Hoarder" habits, and "Night Owl" patterns to save real money.
+- **📂 Project Breakdown:** See exactly which repositories or directories are consuming the most tokens.
+- **💰 Cost Estimates:** Includes **Prompt Caching (90% discount)** and **Reasoning Tokens** in estimated costs.
+- **Model-Aware Pricing:** Known Codex models are priced directly; unknown models are surfaced with a pricing warning.
 
-You can run `codex-spend` instantly without installing it globally using `npx`:
+## 🚀 Quick Start
+
+Run it instantly without installation using `npx`:
 
 ```bash
 npx codex-spend
 ```
 
-Or, if you prefer to install it globally:
+### CLI Options
 
-```bash
-npm install -g codex-spend
-codex-spend
-```
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `--port <number>` | Change the local server port | `4321` |
+| `--state-db <path>` | Override Codex state DB path (advanced) | auto-detect latest |
+| `--no-open` | Skip automatic browser opening | |
+| `--help` | Show usage instructions | |
 
 ## 🛠️ How it Works
 
 When you run `codex-spend`, the tool:
-1. Locates your Codex CLI state folder (usually `~/.codex`).
-2. Parses your `state_5.sqlite` database and `sessions/` JSONL logs.
-3. Calculates exact token usage (Fresh Input, Cached Input, Output, and Reasoning).
-4. Spins up a lightweight local server on port `4321`.
-5. Automatically opens your default web browser to display your personalized dashboard.
+1. Locates your Codex CLI state (usually `~/.codex`).
+2. Parses your `state_n.sqlite` database and `sessions/` transaction logs.
+3. Automatically opens a beautiful local dashboard at `http://localhost:4321`.
+
+### Requirements
+
+- Node.js `>=18`
+- `sqlite3` CLI installed on your system (used to read Codex state database)
 
 ## 💰 Understanding Codex Pricing
 
-The dashboard uses the official OpenAI API per-token pricing (Standard tier). Here are a few things to keep in mind:
-- **Prompt Caching:** You get a **90% discount** on input tokens when Codex re-reads context it has seen recently. The dashboard splits this out and highlights your savings! ([Source](https://openai.com/api/pricing/))
-- **Reasoning Tokens:** High-effort reasoning models generate internal "thinking" tokens. These consume your context window and are billed identically to standard output tokens. They are tracked as a subset of your output tokens in the dashboard. ([Source](https://developers.openai.com/codex/models))
-- **API Mode:** This tool calculates spend based on individual API token costs. If you are using Codex via a ChatGPT Plus/Pro subscription, your usage is actually tracked via a rolling time-based limit (and flexible credits) rather than direct per-token billing, but this dashboard still serves as an excellent gauge of your "virtual" consumption! ([Source](https://help.openai.com/en/articles/12642688-using-credits-for-flexible-usage-in-chatgpt-freegopluspro-sora))
+The dashboard uses estimated cost calculations based on OpenAI API per-token pricing (Standard tier).
+
+- **Prompt Caching:** Codex gives you a **90% discount** on input tokens when it re-reads context it has seen recently. The dashboard highlights your "Cache Hit Rate" and estimated savings.
+- **Reasoning Tokens:** Reasoning tokens are billed at output-token rates; the dashboard tracks them separately.
+- **Model Coverage:** Pricing is applied for known mapped models. If a model is unknown, the dashboard warns that total cost may be underestimated.
 
 ## 🔐 Privacy
 
-`codex-spend` is strictly a local analyzer. It **does not** read your OpenAI API keys, and it **does not** send any telemetrics, logs, or usage data to any external server. 
+`codex-spend` is strictly a local analyzer. 
+- It **never** reads your API keys.
+- It does not upload your Codex usage payloads.
+- The source code is open for audit.
 
 ## 📝 License
 

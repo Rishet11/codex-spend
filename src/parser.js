@@ -17,6 +17,15 @@ const MODEL_PRICING = {
 
 // Fallback pricing for unknown codex models. Indicates pricing is unavailable.
 const DEFAULT_PRICING = { input: 0, cacheRead: 0, output: 0, reasoningResult: 0, unknown: true };
+const DEFAULT_CONTEXT_LIMITS = {
+  'gpt-5.3-codex': 128000,
+  'gpt-5.2-codex': 128000,
+  'gpt-5.1-codex-max': 128000,
+  'gpt-5.1-codex-mini': 128000,
+  'gpt-5.2': 128000,
+};
+
+let cachedContextLimits = null;
 
 function getPricing(model) {
   if (!model) return DEFAULT_PRICING;
@@ -35,7 +44,8 @@ function getCodexDir() {
   return path.join(os.homedir(), '.codex');
 }
 
-function getLatestStateDb() {
+function getLatestStateDb(overridePath = null) {
+  if (overridePath) return overridePath;
   const codexDir = getCodexDir();
   let latest = 5;
   try {
@@ -53,16 +63,67 @@ function getLatestStateDb() {
   return path.join(codexDir, `state_${latest}.sqlite`);
 }
 
-function q(sql) {
-  const dbPath = getLatestStateDb();
+function q(sql, dbPath) {
   try {
     const r = spawnSync("sqlite3", ["-json", dbPath, sql], { encoding: "utf8" });
-    if (r.error || r.status !== 0) return []; // Gracefully handle if sqlite3 is missing or fails
+    if (r.error) {
+      if (r.error.code === 'ENOENT') {
+        throw new Error(
+          'Missing required dependency: sqlite3 CLI was not found on your system. Install sqlite3 and retry. macOS: brew install sqlite; Ubuntu/Debian: sudo apt-get install sqlite3; Windows: choco install sqlite'
+        );
+      }
+      throw r.error;
+    }
+    if (r.status !== 0) {
+      const stderr = (r.stderr || '').trim();
+      throw new Error(`Failed to read Codex state DB with sqlite3. ${stderr || 'Unknown sqlite3 error.'}`);
+    }
     const out = r.stdout ? r.stdout.trim() : "";
     return out ? JSON.parse(out) : [];
   } catch (e) {
-    return [];
+    throw e;
   }
+}
+
+function getStateDbOverride() {
+  return process.env.CODEX_SPEND_STATE_DB || null;
+}
+
+function getModelContextLimits() {
+  if (cachedContextLimits) return cachedContextLimits;
+
+  const limits = { ...DEFAULT_CONTEXT_LIMITS };
+  try {
+    const cachePath = path.join(getCodexDir(), 'models_cache.json');
+    if (fs.existsSync(cachePath)) {
+      const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      const models = Array.isArray(parsed?.models) ? parsed.models : [];
+      for (const model of models) {
+        const slug = String(model?.slug || '').toLowerCase().trim();
+        const contextWindow = Number(model?.context_window || 0);
+        if (slug && Number.isFinite(contextWindow) && contextWindow > 0) {
+          limits[slug] = contextWindow;
+        }
+      }
+    }
+  } catch {
+    // Ignore model cache parsing issues and keep defaults
+  }
+
+  cachedContextLimits = limits;
+  return limits;
+}
+
+function resolveContextLimit(model, limits) {
+  if (!model) return null;
+  const m = String(model).toLowerCase();
+  if (limits[m]) return limits[m];
+  if (m.includes('5.3') && limits['gpt-5.3-codex']) return limits['gpt-5.3-codex'];
+  if (m.includes('codex-mini') && limits['gpt-5.1-codex-mini']) return limits['gpt-5.1-codex-mini'];
+  if (m.includes('codex-max') && limits['gpt-5.1-codex-max']) return limits['gpt-5.1-codex-max'];
+  if (m.includes('5.2-codex') && limits['gpt-5.2-codex']) return limits['gpt-5.2-codex'];
+  if (m.includes('5.2') && limits['gpt-5.2']) return limits['gpt-5.2'];
+  return null;
 }
 
 // Codex IDEs often inject massive context blocks before the actual user prompt
@@ -245,9 +306,8 @@ function calculateCost(model, inputTokens, cachedTokens, outputTokens, reasoning
   return (uncached * pricing.input) + (cachedTokens * pricing.cacheRead) + (outputTokens * pricing.output) + ((reasoningTokens || 0) * pricing.reasoningResult);
 }
 
-async function parseAllSessions() {
-  const codexDir = getCodexDir();
-  const dbPath = path.join(codexDir, 'state_5.sqlite');
+async function parseAllSessions(options = {}) {
+  const dbPath = getLatestStateDb(options.stateDbPath || getStateDbOverride());
   
   if (!fs.existsSync(dbPath)) {
     return { sessions: [], totals: {} };
@@ -259,7 +319,7 @@ async function parseAllSessions() {
     FROM threads
     WHERE archived = 0
     ORDER BY tokens_used DESC
-  `);
+  `, dbPath);
 
   const sessions = [];
   
@@ -288,8 +348,21 @@ async function parseAllSessions() {
     const durationOffset = (t.updated_at || t.created_at) - t.created_at;
     const durationStr = durationOffset > 0 ? `${(durationOffset / 60).toFixed(1)} mins` : "N/A";
 
-    // Pick the most recent/predominant model from queries or fallback to sqlite provider
-    const model = queries.length > 0 && queries[queries.length - 1].model ? queries[queries.length - 1].model : (t.model_provider || "unknown");
+    // Label sessions by majority model usage for display.
+    let model = t.model_provider || "unknown";
+    if (queries.length > 0) {
+      const modelCounts = {};
+      for (const q of queries) {
+        if (!q.model) continue;
+        modelCounts[q.model] = (modelCounts[q.model] || 0) + 1;
+      }
+      const ranked = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]);
+      if (ranked.length > 0) {
+        model = ranked[0][0];
+      } else if (queries[queries.length - 1].model) {
+        model = queries[queries.length - 1].model;
+      }
+    }
     // Determine the predominant reasoning level for the session
     let reasoningLevel = "none";
     if (queries.length > 0) {
@@ -310,11 +383,11 @@ async function parseAllSessions() {
         }
       }
     }
-    const pricing = getPricing(model);
     const totalTokens = totalInput + totalOutput + totalReasoning;
-    
-    const uncachedInput = Math.max(0, totalInput - totalCacheRead);
-    const sessionCost = pricing.unknown ? 0 : (uncachedInput * pricing.input) + (totalCacheRead * pricing.cacheRead) + (totalOutput * pricing.output) + (totalReasoning * pricing.reasoningResult);
+    const sessionCost = queries.reduce((sum, q) => {
+      const pricedModel = q.model || model;
+      return sum + calculateCost(pricedModel, q.inputTokens || 0, q.cachedTokens || 0, q.outputTokens || 0, q.reasoningTokens || 0);
+    }, 0);
 
     sessions.push({
       sessionId: t.id,
@@ -398,6 +471,8 @@ async function parseAllSessions() {
   
   allPrompts.sort((a, b) => b.totalTokens - a.totalTokens);
   const topPrompts = allPrompts.slice(0, 20);
+  const topPromptsByTokens = [...allPrompts].sort((a, b) => b.totalTokens - a.totalTokens).slice(0, 20);
+  const topPromptsByCost = [...allPrompts].sort((a, b) => b.cost - a.cost).slice(0, 20);
 
   // Build per-project aggregation
   const projectMap = {};
@@ -494,7 +569,7 @@ async function parseAllSessions() {
   
   const totalUncachedInput = Math.max(0, totals.totalInputTokens - totals.totalCacheReadTokens);
   totals.totalCost = sessions.reduce((sum, s) => sum + s.cost, 0);
-  totals.hasUnknownPricing = sessions.some(s => getPricing(s.model).unknown);
+  totals.hasUnknownPricing = sessions.some(s => (s.queries || []).some(q => getPricing(q.model || s.model).unknown));
   totals.cacheHitRate = totals.totalInputTokens > 0 ? (totals.totalCacheReadTokens / totals.totalInputTokens) : 0;
   
   if (totals.dateRange && totals.dateRange.from && totals.dateRange.to) {
@@ -559,6 +634,8 @@ async function parseAllSessions() {
     dailyUsage,
     modelBreakdown,
     topPrompts,
+    topPromptsByTokens,
+    topPromptsByCost,
     totals,
     projectBreakdown,
     insights: insights
@@ -593,6 +670,14 @@ function generateInsights(sessions, allPrompts, totals) {
       return `GPT ${match[1]}`;
     }
     return m;
+  }
+
+  function validateInsightCost(insightId, value) {
+    if (!Number.isFinite(value)) {
+      console.warn(`[codex-spend] Suppressing insight "${insightId}" due to invalid cost value: ${value}`);
+      return null;
+    }
+    return value;
   }
 
   // 1. Long conversations getting more expensive over time
@@ -663,18 +748,13 @@ function generateInsights(sessions, allPrompts, totals) {
   }
 
   // 4. Context Window Utilisation
-  const modelContextLimits = {
-    'gpt-5.3-codex': 128000,
-    'gpt-5.2-codex': 128000,
-    'gpt-5.1-codex-max': 128000,
-    'gpt-5.1-codex-mini': 128000,
-    'gpt-5.2': 128000
-  };
+  const modelContextLimits = getModelContextLimits();
   
   const nearLimitSessions = sessions.filter(s => {
-    const limit = modelContextLimits[s.model.toLowerCase()] || 128000;
+    const limit = resolveContextLimit(s.model, modelContextLimits);
     // We check the peak single-request input tokens to see if it was near the limit
     if (!s.queries || s.queries.length === 0) return false;
+    if (!limit) return false;
     const peakInput = Math.max(...s.queries.map(q => q.requestInputTokens || 0));
     return peakInput > (limit * 0.8); // 80% utilisation
   });
@@ -682,7 +762,7 @@ function generateInsights(sessions, allPrompts, totals) {
   if (nearLimitSessions.length > 0) {
     const s = nearLimitSessions[0];
     const peakInput = Math.max(...s.queries.map(q => q.requestInputTokens || 0));
-    const limit = modelContextLimits[s.model.toLowerCase()] || 128000;
+    const limit = resolveContextLimit(s.model, modelContextLimits) || 128000;
     insights.push({
       id: 'context-window-limit',
       type: 'warning',
@@ -690,6 +770,26 @@ function generateInsights(sessions, allPrompts, totals) {
       description: `In ${nearLimitSessions.length === 1 ? 'one conversation' : nearLimitSessions.length + ' conversations'} (like "${s.firstPrompt.substring(0, 50)}..."), your context reached ${fmt(peakInput)} tokens in a single request. The absolute limit for ${modelShort(s.model)} is ${fmt(limit)}. As you approach the limit, the model may forget earlier instructions or begin ignoring files.`,
       action: 'Close unused files in your IDE and aggressively start new conversations when tackling distinct sub-tasks. Codex works best when its context window is focused only on what is strictly necessary.',
     });
+  } else {
+    const highContextUnknownLimit = sessions
+      .filter(s => s.queries && s.queries.length > 0 && !resolveContextLimit(s.model, modelContextLimits))
+      .map(s => ({
+        session: s,
+        peakInput: Math.max(...s.queries.map(q => q.requestInputTokens || 0)),
+      }))
+      .filter(entry => entry.peakInput > 100000)
+      .sort((a, b) => b.peakInput - a.peakInput);
+
+    if (highContextUnknownLimit.length > 0) {
+      const top = highContextUnknownLimit[0];
+      insights.push({
+        id: 'context-window-limit',
+        type: 'warning',
+        title: `High context usage detected (${fmt(top.peakInput)} tokens in one request)`,
+        description: `In ${highContextUnknownLimit.length === 1 ? 'one conversation' : highContextUnknownLimit.length + ' conversations'} (like "${top.session.firstPrompt.substring(0, 50)}..."), single requests reached very high input token volume. We could not determine an exact context limit for this model, so this is an estimate rather than a precise saturation percentage.`,
+        action: 'If responses become inconsistent, split work into smaller sessions and keep only the most relevant files in context.',
+      });
+    }
   }
 
   // 4. Reasoning ROI Analyzer (High Effort on Short Prompts)
@@ -807,7 +907,7 @@ function generateInsights(sessions, allPrompts, totals) {
         type: 'info',
         title: `Model Downgrade Opportunity (save ~$${savings.toFixed(2)})`,
         description: `We noticed ${overpaidSessions.length} very short sessions using the premium \`gpt-5.3-codex\` model where you only generated a few lines of output.`,
-        action: `For simple questions or quick formatting tasks, explicitly select \`gpt-5.1-codex-mini\`. It will give you the exact same result for a fraction of the cost.`,
+        action: `For simple questions or quick formatting tasks, explicitly select \`gpt-5.1-codex-mini\`. It usually delivers similar performance at a lower cost.`,
       });
     }
   }
@@ -820,23 +920,26 @@ function generateInsights(sessions, allPrompts, totals) {
     insights.push({
       id: 'tool-loop-warning',
       type: 'warning',
-      title: `Codex is struggling to find what it needs (costing ~$${toolCost.toFixed(2)})`,
-      description: `In a recent prompt ("${worstToolQuery.userPrompt.substring(0, 30)}..."), Codex had to use internal background tools ${worstToolQuery.continuations} times before replying.`,
-      action: `This usually means your request was too vague or the workspace is too large. Try pointing the AI directly to the relevant file paths in your prompt.`,
+      title: `Extended tool interactions detected (estimated ~$${toolCost.toFixed(2)})`,
+      description: `In a recent prompt ("${worstToolQuery.userPrompt.substring(0, 30)}..."), we estimated about ${worstToolQuery.continuations} continuation cycles before the response completed.`,
+      action: `This can happen when requests are broad or workspace context is large. Try pointing the AI directly to relevant file paths and narrowing scope.`,
     });
   }
 
   // 11. Micro-Tasking with Heavy Baggage
   const microSessions = sessions.filter(s => s.queryCount === 1 && s.queries[0].inputTokens > 50000 && parseFloat(s.duration) < 2);
   if (microSessions.length > 5) {
-    const microCost = microSessions.reduce((sum, s) => sum + s.totalCost, 0);
-    insights.push({
-      id: 'micro-tasking',
-      type: 'warning',
-      title: `You are carrying heavy luggage for short trips (wasted ~$${microCost.toFixed(2)})`,
-      description: `You started ${microSessions.length} new conversations recently for a single quick question, but your IDE sent over massive background context payloads each time.`,
-      action: `Close unused tabs before asking quick, one-off questions to drastically reduce your baseline token cost.`,
-    });
+    const microCostRaw = microSessions.reduce((sum, s) => sum + s.cost, 0);
+    const microCost = validateInsightCost('micro-tasking', microCostRaw);
+    if (microCost !== null) {
+      insights.push({
+        id: 'micro-tasking',
+        type: 'warning',
+        title: `You are carrying heavy luggage for short trips (wasted ~$${microCost.toFixed(2)})`,
+        description: `You started ${microSessions.length} new conversations recently for a single quick question, but your IDE sent over massive background context payloads each time.`,
+        action: `Close unused tabs before asking quick, one-off questions to drastically reduce your baseline token cost.`,
+      });
+    }
   }
 
   // 12. Weekend Warrior
@@ -850,33 +953,39 @@ function generateInsights(sessions, allPrompts, totals) {
         const day = dt.getDay(); // 0 is Sunday, 6 is Saturday
         if (day === 0 || day === 6) {
           weekendTokens += s.totalTokens;
-          weekendCost += s.totalCost;
+          weekendCost += s.cost;
         }
       }
     });
     const weekendPct = (weekendTokens / totals.totalTokens) * 100;
     if (weekendPct > 30) {
-      insights.push({
-        id: 'weekend-warrior',
-        type: 'info',
-        title: `You’re a Weekend Warrior! (${weekendPct.toFixed(0)}% weekend usage / $${weekendCost.toFixed(2)})`,
-        description: `Over ${weekendPct.toFixed(0)}% of your token spend ($${weekendCost.toFixed(2)}) happened on Saturday or Sunday.`,
-        action: `Make sure to take breaks! Continuous coding without rest can lead to burnout and less efficient prompting.`,
-      });
+      const safeWeekendCost = validateInsightCost('weekend-warrior', weekendCost);
+      if (safeWeekendCost !== null) {
+        insights.push({
+          id: 'weekend-warrior',
+          type: 'info',
+          title: `You’re a Weekend Warrior! (${weekendPct.toFixed(0)}% weekend usage / $${safeWeekendCost.toFixed(2)})`,
+          description: `Over ${weekendPct.toFixed(0)}% of your token spend ($${safeWeekendCost.toFixed(2)}) happened on Saturday or Sunday.`,
+          action: `Make sure to take breaks! Continuous coding without rest can lead to burnout and less efficient prompting.`,
+        });
+      }
     }
   }
 
   // 13. The "Abandoned Context" Waste
   const abandonedSessions = sessions.filter(s => s.queryCount === 1 && s.queries[0].inputTokens > 80000 && (!s.queries[0].outputTokens || s.queries[0].outputTokens < 50));
   if (abandonedSessions.length > 3) {
-    const abndnCost = abandonedSessions.reduce((sum, s) => sum + s.totalCost, 0);
-    insights.push({
-      id: 'abandoned-context',
-      type: 'warning',
-      title: `You loaded the entire codebase but never followed up (wasted ~$${abndnCost.toFixed(2)})`,
-      description: `You have ${abandonedSessions.length} recent sessions where you initialized a massive context window but abandoned the chat almost immediately after the first reply.`,
-      action: `Be mindful of starting heavy sessions you don't intend to finish. It costs money just to initialize the context window!`,
-    });
+    const abndnCostRaw = abandonedSessions.reduce((sum, s) => sum + s.cost, 0);
+    const abndnCost = validateInsightCost('abandoned-context', abndnCostRaw);
+    if (abndnCost !== null) {
+      insights.push({
+        id: 'abandoned-context',
+        type: 'warning',
+        title: `You loaded the entire codebase but never followed up (wasted ~$${abndnCost.toFixed(2)})`,
+        description: `You have ${abandonedSessions.length} recent sessions where you initialized a massive context window but abandoned the chat almost immediately after the first reply.`,
+        action: `Be mindful of starting heavy sessions you don't intend to finish. It costs money just to initialize the context window!`,
+      });
+    }
   }
 
   return insights;
