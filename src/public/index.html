@@ -438,11 +438,18 @@
     padding: 16px 20px; border-bottom: 1px solid var(--border); vertical-align: middle;
   }
   .sessions-table tbody tr { cursor: pointer; transition: background 0.1s; }
-  .sessions-table tbody tr:hover td { background: #FAFBFF; }
   .sessions-table tbody tr:last-child td { border-bottom: none; }
+  
+  /* Set explicit widths to prevent shifting and overlapping */
+  .col-date { width: 120px; }
+  .col-prompt { width: auto; max-width: 0; /* max-width: 0 forces truncated behavior in table fluid cell */ }
+  .col-model { width: 140px; }
+  .col-reasoning { width: 120px; }
+  .col-nums { width: 90px; }
+
   .prompt-preview {
-    max-width: 420px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; font-weight: 500; font-size: 13.5px; line-height: 1.5; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; width: 100%;
   }
   .token-num {
     font-family: var(--mono); font-size: 13px; font-weight: 600;
@@ -724,15 +731,15 @@
       <table class="sessions-table">
         <thead>
           <tr>
-            <th data-sort="date">Date</th>
-            <th data-sort="prompt">What you asked</th>
-            <th data-sort="model"><span class="has-tooltip has-tooltip-below">Model<div class="tooltip">Which AI model was used. OpenAI Codex models have different prices and capabilities.</div></span></th>
-            <th data-sort="reasoning_level"><span class="has-tooltip has-tooltip-below">Reasoning Level<div class="tooltip">The selected reasoning effort for this session (e.g. Low, Medium, High).</div></span></th>
-            <th data-sort="queries" style="text-align:right"><span class="has-tooltip has-tooltip-below">Messages<div class="tooltip">How many back-and-forth messages happened in this conversation, including automatic tool calls OpenAI Codex made.</div></span></th>
-            <th data-sort="total" style="text-align:right" class="sorted"><span class="has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></span></th>
-            <th data-sort="input" style="text-align:right"><span class="has-tooltip has-tooltip-below">Read<div class="tooltip">Tokens Codex read: your messages, the conversation history, files, and system context. This grows with each message because the full history gets re-sent.</div></span></th>
-            <th data-sort="reasoning" style="text-align:right"><span class="has-tooltip has-tooltip-below">Reasoning<div class="tooltip">Tokens Codex used specifically to "think" out loud before returning its final output to you.</div></span></th>
-            <th data-sort="output" style="text-align:right"><span class="has-tooltip has-tooltip-below">Written<div class="tooltip">Tokens Codex wrote back: responses, code, explanations. Usually a small fraction of the total.</div></span></th>
+            <th class="col-date" data-sort="date">Date</th>
+            <th class="col-prompt" data-sort="prompt">What you asked</th>
+            <th class="col-model" data-sort="model"><span class="has-tooltip has-tooltip-below">Model<div class="tooltip">Which AI model was used. OpenAI Codex models have different prices and capabilities.</div></span></th>
+            <th class="col-reasoning" data-sort="reasoning_level"><span class="has-tooltip has-tooltip-below">Reasoning Level<div class="tooltip">The selected reasoning effort for this session (e.g. Low, Medium, High).</div></span></th>
+            <th class="col-nums" data-sort="queries" style="text-align:right"><span class="has-tooltip has-tooltip-below">Messages<div class="tooltip">How many back-and-forth messages happened in this conversation, including automatic tool calls OpenAI Codex made.</div></span></th>
+            <th class="col-nums" data-sort="total" style="text-align:right" class="sorted"><span class="has-tooltip has-tooltip-below">Total tokens<div class="tooltip">The total number of tokens used in this conversation. Higher means more expensive. Long conversations cost more because Codex re-reads everything each turn.</div></span></th>
+            <th class="col-nums" data-sort="input" style="text-align:right"><span class="has-tooltip has-tooltip-below">Read<div class="tooltip">Tokens Codex read: your messages, the conversation history, files, and system context. This grows with each message because the full history gets re-sent.</div></span></th>
+            <th class="col-nums" data-sort="reasoning" style="text-align:right"><span class="has-tooltip has-tooltip-below">Reasoning<div class="tooltip">Tokens Codex used specifically to "think" out loud before returning its final output to you.</div></span></th>
+            <th class="col-nums" data-sort="output" style="text-align:right"><span class="has-tooltip has-tooltip-below">Written<div class="tooltip">Tokens Codex wrote back: responses, code, explanations. Usually a small fraction of the total.</div></span></th>
           </tr>
         </thead>
         <tbody id="sessionsBody"></tbody>
@@ -1224,20 +1231,20 @@ function renderSessions() {
 
   document.getElementById('sessionsBody').innerHTML = sessions.map(s => `
     <tr onclick="openDrilldown('${s.sessionId}')">
-      <td class="date-cell">
+      <td class="date-cell col-date">
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <span style="font-weight: 600; color: var(--text);">${formatDate(s.date)}</span>
           <span class="project-tag" title="${escapeHtml(projectShort(s.project))}">${escapeHtml(projectShort(s.project))}</span>
         </div>
       </td>
-      <td><div class="prompt-preview" title="${escapeHtml(s.firstPrompt)}">${escapeHtml(s.firstPrompt)}</div></td>
-      <td><span class="model-badge ${modelClass(s.model)}"><span class="model-dot"></span>${modelShort(s.model)}</span></td>
-      <td><span style="font-size: 13px; font-weight: 500; text-transform: capitalize; color: var(--text-secondary);">${s.reasoningLevel === 'very_high' ? 'Very High' : s.reasoningLevel || 'None'}</span></td>
-      <td class="token-num">${s.queryCount}</td>
-      <td class="token-num" style="font-weight:700">${fmt(s.totalTokens)}</td>
-      <td class="token-num">${fmt(s.inputTokens)}</td>
-      <td class="token-num">${fmt(s.reasoningTokens || 0)}</td>
-      <td class="token-num">${fmt(s.outputTokens)}</td>
+      <td class="col-prompt"><div class="prompt-preview" title="${escapeHtml(s.firstPrompt)}">${escapeHtml(s.firstPrompt)}</div></td>
+      <td class="col-model"><span class="model-badge ${modelClass(s.model)}"><span class="model-dot"></span>${modelShort(s.model)}</span></td>
+      <td class="col-reasoning"><span style="font-size: 13px; font-weight: 500; text-transform: capitalize; color: var(--text-secondary);">${s.reasoningLevel === 'very_high' ? 'Very High' : s.reasoningLevel || 'None'}</span></td>
+      <td class="token-num col-nums">${s.queryCount}</td>
+      <td class="token-num col-nums" style="font-weight:700">${fmt(s.totalTokens)}</td>
+      <td class="token-num col-nums">${fmt(s.inputTokens)}</td>
+      <td class="token-num col-nums">${fmt(s.reasoningTokens || 0)}</td>
+      <td class="token-num col-nums">${fmt(s.outputTokens)}</td>
     </tr>
   `).join('');
 }
