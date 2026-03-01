@@ -68,9 +68,9 @@ const server = app.listen(port, '127.0.0.1', async () => {
       const recent = [...data.sessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 10).reverse(); // show last 10
       for (const s of recent) {
         const title = s.firstPrompt.length > colTitle ? s.firstPrompt.substring(0, colTitle - 3) + '...' : s.firstPrompt.padEnd(colTitle);
-        // format date as DD MM YY
+        // format date as DD-MM-YY
         const dparts = s.date.split('-');
-        const dateStr = (dparts.length === 3 ? `${dparts[2]} ${dparts[1]} ${dparts[0].slice(2)}` : s.date).padEnd(colDate);
+        const dateStr = (dparts.length === 3 ? `${dparts[2]}-${dparts[1]}-${dparts[0].slice(2)}` : s.date).padEnd(colDate);
         
         const model = s.model.length > colModel ? s.model.substring(0, colModel) : s.model.padEnd(colModel);
         

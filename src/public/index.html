@@ -807,7 +807,7 @@ function escapeHtml(s) {
 function formatDate(d) {
   if (!d) return '';
   const parts = d.split('-');
-  return `${parts[2]} ${parts[1]} ${parts[0].slice(2)}`;
+  return `${parts[2]}-${parts[1]}-${parts[0].slice(2)}`;
 }
 
 async function fetchData() {
