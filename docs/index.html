@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>codex-spend | OpenAI Codex Analytics Dashboard</title>
-    <meta name="description" content="A beautiful, local-first analytics dashboard for OpenAI Codex. Visualize token usage, find cost-saving patterns, and stay within budget.">
+    <title>codex-spend | Decode your Codex. Optimize your spend.</title>
+    <meta name="description" content="A local-first analytics dashboard for OpenAI Codex. Visualize token usage and find cost-saving patterns instantly.">
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #030712;
-            --accent: #0071E3;
-            --accent-glow: rgba(0, 113, 227, 0.4);
-            --text: #F9FAFB;
-            --text-muted: #9CA3AF;
-            --glass: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --bg: #0A0F14;
+            --surface: #141B21;
+            --accent: #00F5FF; /* Neon Teal */
+            --accent-soft: rgba(0, 245, 255, 0.1);
+            --text: #E2E8F0;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.05);
             --font-main: 'Outfit', sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
         }
@@ -30,617 +30,453 @@
             font-family: var(--font-main);
             overflow-x: hidden;
             line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
         }
 
-        /* Top Announcement Bar */
-        .announcement-bar {
-            background: linear-gradient(90deg, #0071E3, #5e5ce6);
-            color: white;
-            text-align: center;
-            padding: 8px 0;
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            position: relative;
-            z-index: 20;
-        }
-
-        /* Ambient Background Shadows */
-        .ambient {
+        /* Ambient Glow */
+        .ambient-glow {
             position: fixed;
-            width: 60vw;
-            height: 60vw;
-            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-            top: -20vw;
-            right: -20vw;
+            width: 80vw;
+            height: 80vw;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.05) 0%, transparent 70%);
+            top: -30vw;
+            left: -10vw;
             z-index: -1;
-            filter: blur(80px);
-            opacity: 0.5;
-        }
-
-        .ambient-2 {
-            position: fixed;
-            width: 50vw;
-            height: 50vw;
-            background: radial-gradient(circle, rgba(88, 86, 214, 0.2) 0%, transparent 70%);
-            bottom: -15vw;
-            left: -15vw;
-            z-index: -1;
-            filter: blur(80px);
-            opacity: 0.4;
+            filter: blur(100px);
         }
 
         nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2rem 10%;
+            padding: 2.5rem 8%;
             position: absolute;
-            top: 40px; /* offset for announcement bar */
             width: 100%;
-            z-index: 10;
+            z-index: 100;
         }
 
         .logo {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
             display: flex;
             align-items: center;
             gap: 12px;
-            text-decoration: none;
-            color: white;
-            font-weight: 700;
-            font-size: 1.25rem;
-            letter-spacing: -0.02em;
+            font-size: 1.2rem;
         }
 
-        .logo img {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-        }
+        .logo img { width: 32px; border-radius: 4px; }
 
         .nav-links a {
             color: var(--text-muted);
             text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
             margin-left: 2rem;
+            transition: color 0.2s;
         }
 
-        .nav-links a:hover { color: var(--text); }
+        .nav-links a:hover { color: var(--accent); }
 
-        header {
-            padding-top: 180px;
-            display: flex;
-            flex-direction: column;
+        /* Hero: Asymmetric Terminal-First */
+        .hero {
+            padding: 160px 8% 80px;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 4rem;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding-left: 10%;
-            padding-right: 10%;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        h1 {
-            font-size: clamp(2.5rem, 8vw, 4.5rem);
+        .hero-content { text-align: left; }
+
+        .hero h1 {
+            font-family: var(--font-mono);
+            font-size: clamp(2.5rem, 5vw, 4rem);
             font-weight: 800;
-            letter-spacing: -0.04em;
             line-height: 1.1;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(to bottom, #fff 40%, #94a3b8);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            margin-bottom: 2rem;
+            color: #fff;
+            letter-spacing: -0.04em;
         }
 
-        .hero-desc {
-            max-width: 650px;
-            font-size: 1.125rem;
+        .hero h1 span { color: var(--accent); }
+
+        .hero-p {
+            font-size: 1.1rem;
             color: var(--text-muted);
-            margin-bottom: 3.5rem;
+            max-width: 540px;
+            margin-bottom: 3rem;
         }
 
-        .cta-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5rem;
-            width: 100%;
-        }
-
-        .npx-card {
+        /* Fake Terminal Window */
+        .terminal-window {
             background: #000;
-            border: 1px solid var(--glass-border);
-            padding: 14px 28px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7);
+            overflow: hidden;
             font-family: var(--font-mono);
             position: relative;
-            cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s;
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
-            max-width: 100%;
-            overflow: hidden;
         }
 
-        .npx-card:hover {
+        .terminal-header {
+            background: var(--surface);
+            padding: 12px 16px;
+            display: flex;
+            gap: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        .terminal-body {
+            padding: 24px;
+            color: #fff;
+            font-size: 0.95rem;
+            min-height: 300px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: var(--accent);
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .command-line { margin-bottom: 16px; }
+        .command-line span { color: var(--accent); margin-right: 12px; }
+
+        .cta-btn {
+            background: var(--accent);
+            color: #000;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: var(--font-mono);
+        }
+
+        .cta-btn:hover {
             transform: translateY(-2px);
-            border-color: var(--accent);
+            box-shadow: 0 10px 20px -5px var(--accent-soft);
         }
 
-        .npx-card span { color: var(--accent); user-select: none; }
-        .npx-card .copy-hint { 
-            font-size: 0.75rem; 
-            color: var(--text-muted); 
-            margin-left: 10px;
-            font-family: var(--font-main);
+        /* Flow Guide: Vertical Terminal Log */
+        .flow-section {
+            padding: 100px 8%;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
         }
 
-        .dashboard-wrapper {
-            margin-top: 5rem;
-            width: 100%;
-            max-width: 1100px;
+        .section-header {
+            max-width: 800px;
+            margin-bottom: 4rem;
+        }
+
+        .section-header h2 {
+            font-family: var(--font-mono);
+            font-size: 2.5rem;
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .flow-container {
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
             position: relative;
         }
 
-        /* Carousel Styles */
-        .carousel-container {
+        .flow-step {
+            display: flex;
+            gap: 2rem;
+            padding-bottom: 3rem;
             position: relative;
-            width: 100%;
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 12px;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 40px 100px -20px rgba(0,0,0,0.8);
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: 0;
+            width: 1px;
+            background: var(--border);
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            background: #000;
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .step-info h3 {
+            font-family: var(--font-mono);
+            color: #fff;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .step-info p { color: var(--text-muted); font-size: 1rem; }
+
+        /* Carousel: Uncharted Insights */
+        .preview-section {
+            padding: 120px 8%;
+            text-align: center;
+        }
+
+        .section-title-alt {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .carousel-outer {
+            margin-top: 4rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            background: #000;
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .carousel-view {
             overflow: hidden;
-            z-index: 2;
+            border-radius: 12px;
         }
 
         .carousel-track {
             display: flex;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .carousel-slide {
-            min-width: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-        }
+        .carousel-slide { min-width: 100%; position: relative; }
+        .carousel-slide img { width: 100%; display: block; filter: contrast(1.1); }
 
-        .carousel-slide img {
-            width: 100%;
-            display: block;
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 16px;
-        }
-
-        .carousel-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
+        .carousel-nav {
             display: flex;
-            align-items: center;
             justify-content: center;
+            gap: 12px;
+            margin-top: 2rem;
+        }
+
+        .dot-btn {
+            width: 12px;
+            height: 4px;
+            background: #333;
+            border: none;
             cursor: pointer;
-            z-index: 10;
-            backdrop-filter: blur(10px);
-            transition: background 0.3s, border-color 0.3s;
+            transition: all 0.3s;
+            border-radius: 2px;
         }
 
-        .carousel-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: var(--accent);
-        }
+        .dot-btn.active { background: var(--accent); width: 32px; }
 
-        .carousel-btn.prev { left: 24px; }
-        .carousel-btn.next { right: 24px; }
-
-        .carousel-dots {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 24px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            transition: background 0.3s, width 0.3s;
-        }
-
-        .dot.active {
-            background: var(--accent);
-            width: 24px;
-            border-radius: 4px;
-        }
-
-        .carousel-caption {
-            text-align: center;
-            margin-top: 16px;
-            font-size: 0.9rem;
+        .caption-box {
+            margin-top: 1.5rem;
+            font-family: var(--font-mono);
             color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        /* Setup Section */
-        .setup-section {
-            padding: 100px 10%;
-            text-align: center;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .section-label {
-            color: var(--accent);
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.2em;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
-        .section-title {
-            font-size: clamp(2rem, 5vw, 2.5rem);
-            font-weight: 700;
-            margin-bottom: 4rem;
-            letter-spacing: -0.02em;
-        }
-
-        .setup-steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            text-align: left;
-        }
-
-        .step-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            padding: 2.5rem;
-            border-radius: 20px;
-            position: relative;
-        }
-
-        .step-num {
-            width: 32px;
-            height: 32px;
-            background: var(--accent);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.8rem;
-            margin-bottom: 2rem;
-        }
-
-        .step-card h3 {
-            font-size: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .step-card p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 100px 10%;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 2rem;
-            max-width: 1240px;
-            margin: 0 auto;
-        }
-
-        .feature-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            padding: 3rem;
-            border-radius: 24px;
-            transition: transform 0.3s, background 0.3s;
-        }
-
-        .feature-card:hover {
-            background: rgba(255,255,255,0.05);
-            transform: translateY(-5px);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            display: block;
-        }
-
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: #fff;
-        }
-
-        .feature-card p {
-            color: var(--text-muted);
-            font-size: 1rem;
-        }
-
-        /* Social Proof / Stats */
-        .trust-section {
-            padding: 80px 10%;
-            text-align: center;
-            border-top: 1px solid var(--glass-border);
-            border-bottom: 1px solid var(--glass-border);
-            background: rgba(255,255,255,0.01);
-        }
-
-        .trust-grid {
-            display: flex;
-            justify-content: center;
-            gap: 5rem;
-            flex-wrap: wrap;
-        }
-
-        .stat-item h4 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #fff;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-item p {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-weight: 600;
+            min-height: 24px;
         }
 
         footer {
-            padding: 80px 10%;
+            padding: 80px 8%;
+            border-top: 1px solid var(--border);
             text-align: center;
-            color: var(--text-muted);
-            font-size: 0.95rem;
+            font-family: var(--font-mono);
         }
 
-        footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
-        footer .footer-logo { margin-bottom: 2rem; opacity: 0.5; }
+        footer p { color: var(--text-muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
 
-        @media (max-width: 768px) {
-            h1 { font-size: 2.75rem; }
-            .nav-links { display: none; }
-            .trust-grid { gap: 3rem; }
-            header { padding-top: 120px; }
+        @media (max-width: 1024px) {
+            .hero { grid-template-columns: 1fr; text-align: center; }
+            .hero-content { display: flex; flex-direction: column; align-items: center; }
+            .hero-p { margin-left: auto; margin-right: auto; }
         }
 
-        /* Animation */
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
+        .copy-success { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            color: var(--accent); 
+            font-size: 0.8rem; 
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        .dashboard-preview { animation: float 6s ease-in-out infinite; }
     </style>
 </head>
 <body>
-    <div class="announcement-bar">
-        ✨ v1.1.0 LAUNCH: New dashboard, ASCII branding, and automated insights.
-    </div>
-
-    <div class="ambient"></div>
-    <div class="ambient-2"></div>
+    <div class="ambient-glow"></div>
 
     <nav>
         <a href="#" class="logo">
-            <img src="logo.png" alt="Logo">
-            codex-spend
+            <img src="logo.png" alt="CS Logo">
+            CODEX_SPEND
         </a>
         <div class="nav-links">
-            <a href="#setup">How it works</a>
-            <a href="https://github.com/Rishet11/codex-spend" target="_blank">GitHub</a>
+            <a href="https://github.com/Rishet11/codex-spend" target="_blank">SOURCE</a>
             <a href="https://www.npmjs.com/package/codex-spend" target="_blank">NPM</a>
         </div>
     </nav>
 
-    <header>
-        <span class="section-label">Your wallet will thank you</span>
-        <h1>Stop guessing your<br>OpenAI spend.</h1>
-        <p class="hero-desc">
-            You use OpenAI Codex every day. But where do the tokens go? 
-            <b>codex-spend</b> provides instant transparency with a beautiful local dashboard. 
-            No sign-up, no API keys, 100% private.
-        </p>
-
-        <div class="cta-group">
-            <div class="npx-card" onclick="copyToClipboard('npx codex-spend')">
-                <span>$</span> npx codex-spend
-                <div class="copy-hint" id="copy-hint">Click to copy</div>
-            </div>
-            
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;">
-                Works in any terminal. No installation required.
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Decode your Codex.<br>Optimize your <span>spend.</span></h1>
+            <p class="hero-p">
+                Stop operating in the dark. <b>codex-spend</b> builds a mission control center for your local OpenAI usage. Instant analytics, automated insights, 100% private.
             </p>
+            <div style="display: flex; gap: 1rem;">
+                <a href="#install" class="cta-btn">
+                    INITIATE_ANALYTICS
+                </a>
+            </div>
         </div>
 
-        <div class="dashboard-wrapper">
-            <div class="carousel-container">
-                <div class="carousel-track" id="carousel-track">
-                    <div class="carousel-slide">
-                        <img src="preview_hero.png" alt="codex-spend dashboard hero - stats overview">
-                    </div>
-                    <div class="carousel-slide">
-                        <img src="preview_insights.png" alt="codex-spend dashboard - automated insights">
-                    </div>
-                    <div class="carousel-slide">
-                        <img src="preview_projects.png" alt="codex-spend dashboard - project breakdown">
-                    </div>
-                    <div class="carousel-slide">
-                        <img src="preview_leaderboard.png" alt="codex-spend dashboard - prompt leaderboard">
-                    </div>
-                </div>
-                
-                <button class="carousel-btn prev" onclick="moveSlide(-1)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                </button>
-                <button class="carousel-btn next" onclick="moveSlide(1)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                </button>
+        <div class="terminal-window" onclick="copyNpx()">
+            <div class="terminal-header">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+                <div id="copy-label" class="copy-success">COPIED_TO_CLIPBOARD</div>
             </div>
-
-            <div class="carousel-dots" id="carousel-dots">
-                <div class="dot active" onclick="goToSlide(0)"></div>
-                <div class="dot" onclick="goToSlide(1)"></div>
-                <div class="dot" onclick="goToSlide(2)"></div>
-                <div class="dot" onclick="goToSlide(3)"></div>
-            </div>
-
-            <div class="carousel-caption" id="carousel-caption">
-                Dashboard Overview: 6 key metrics to track your Codex spend.
+            <div class="terminal-body" id="hero-terminal">
+                <div class="command-line"><span>$</span> npx codex-spend</div>
+                <div style="color: #666;"># Generating local dashboard...</div>
+                <div style="color: #666;"># Analyzing .codex-history...</div>
+                <div style="color: #27c93f;">Server active: http://localhost:4322</div>
+                <div class="cursor"></div>
             </div>
         </div>
     </header>
 
-    <section class="trust-section">
-        <div class="trust-grid">
-            <div class="stat-item">
-                <h4>100%</h4>
-                <p>Private & Local</p>
+    <section class="flow-section" id="install">
+        <div class="section-header">
+            <span class="section-title-alt">BOOT_SEQUENCE</span>
+            <h2>Zero-config initialization.</h2>
+        </div>
+
+        <div class="flow-container">
+            <div class="flow-step">
+                <div class="step-icon">01</div>
+                <div class="step-info">
+                    <h3>Invoke Registry</h3>
+                    <p>Run <code>npx codex-spend</code> in your root directory. The tool scans your local cache instantly.</p>
+                </div>
             </div>
-            <div class="stat-item">
-                <h4>&lt;30s</h4>
-                <p>Setup Time</p>
+            <div class="flow-step">
+                <div class="step-icon">02</div>
+                <div class="step-info">
+                    <h3>Local Processing</h3>
+                    <p>Usage data is parsed, indexed, and evaluated locally. Your API keys and data never touch a remote server.</p>
+                </div>
             </div>
-            <div class="stat-item">
-                <h4>$0</h4>
-                <p>Cost to use</p>
+            <div class="flow-step">
+                <div class="step-icon">03</div>
+                <div class="step-info">
+                    <h3>Strategic Insight</h3>
+                    <p>Open the generated URL to reveal cost peaks, token sinks, and optimization strategies automatically.</p>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="setup-section" id="setup">
-        <span class="section-label">Getting Started</span>
-        <h2 class="section-title">Three steps. Thirty seconds.</h2>
-        <div class="setup-steps">
-            <div class="step-card">
-                <div class="step-num">1</div>
-                <h3>Open Terminal</h3>
-                <p>Press <code>Cmd + Space</code> and type 'Terminal'. Or use your preferred IDE terminal.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-num">2</div>
-                <h3>Run Command</h3>
-                <p>Copy and paste <code>npx codex-spend</code>. No permanent install or local database setup needed.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-num">3</div>
-                <h3>Save Money</h3>
-                <p>Review your insights, identify expensive conversation patterns, and optimize your Codex spend instantly.</p>
-            </div>
-        </div>
-    </section>
+    <section class="preview-section">
+        <span class="section-title-alt">TELEMETRY_VIEW</span>
+        <h2 style="font-family: var(--font-mono); font-size: 3rem; margin-bottom: 4rem;">Uncharted Insights.</h2>
 
-    <section class="features">
-        <div class="feature-card">
-            <span class="feature-icon">🛡️</span>
-            <h3>Privacy by Design</h3>
-            <p>We believe your usage data is yours alone. Our tool works entirely offline. We never ask for, read, or store your OpenAI API keys.</p>
-        </div>
-        <div class="feature-card">
-            <span class="feature-icon">📈</span>
-            <h3>Value over Volume</h3>
-            <p>Identifying that 95% of your tokens are spent on compounding context, not writing code, can save you hundreds of dollars.</p>
-        </div>
-        <div class="feature-card">
-            <span class="feature-icon">🔍</span>
-            <h3>Deep Context Mining</h3>
-            <p>Beyond raw numbers: find out which specific logic settings or project sizes are driving your monthly bills.</p>
+        <div class="carousel-outer">
+            <div class="carousel-view">
+                <div class="carousel-track" id="track">
+                    <div class="carousel-slide"><img src="preview_hero.png" alt="Telemetry 01"></div>
+                    <div class="carousel-slide"><img src="preview_insights.png" alt="Telemetry 02"></div>
+                    <div class="carousel-slide"><img src="preview_projects.png" alt="Telemetry 03"></div>
+                    <div class="carousel-slide"><img src="preview_leaderboard.png" alt="Telemetry 04"></div>
+                </div>
+            </div>
+            <div class="carousel-nav">
+                <button class="dot-btn active" onclick="jump(0)"></button>
+                <button class="dot-btn" onclick="jump(1)"></button>
+                <button class="dot-btn" onclick="jump(2)"></button>
+                <button class="dot-btn" onclick="jump(3)"></button>
+            </div>
+            <div class="caption-box" id="caption">
+                SYSTEM_OVERVIEW: REAL-TIME TOKEN ANALYTICS
+            </div>
         </div>
     </section>
 
     <footer>
-        <div class="footer-logo">
-            <img src="logo.png" alt="Logo" width="40">
-        </div>
-        <p>&copy; 2026 codex-spend. Built with ❤️ by <a href="https://github.com/Rishet11" target="_blank">Rishet Mehra</a>.</p>
-        <p style="margin-top: 1rem; font-size: 0.85rem;">Distributed under the MIT License.</p>
+        <p>SYSTEM: CODEX-SPEND_V1.1.0 | AUTHOR: <a href="https://github.com/Rishet11" target="_blank">RISHET_MEHRA</a></p>
+        <p style="margin-top: 1rem; opacity: 0.5;">[ LICENSED_UNDER_MIT ]</p>
     </footer>
 
     <script>
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text);
-            const hint = document.getElementById('copy-hint');
-            hint.textContent = 'Copied!';
-            hint.style.color = '#34C759';
-            setTimeout(() => {
-                hint.textContent = 'Click to copy';
-                hint.style.color = '#9CA3AF';
-            }, 2000);
+        function copyNpx() {
+            navigator.clipboard.writeText('npx codex-spend');
+            const label = document.getElementById('copy-label');
+            label.style.opacity = '1';
+            setTimeout(() => label.style.opacity = '0', 2000);
         }
 
-        // Carousel Logic
-        let currentSlide = 0;
-        const totalSlides = 4;
-        const track = document.getElementById('carousel-track');
-        const dots = document.querySelectorAll('.dot');
-        const caption = document.getElementById('carousel-caption');
-        
-        const captions = [
-            "Dashboard Overview: 6 key metrics to track your Codex spend.",
-            "Automated Insights: Discover hidden cost patterns and expensive behaviors.",
-            "Project Breakdown: See exactly which repositories are driving usage.",
-            "Prompt Leaderboard: Rank your most expensive prompts and conversation chains."
+        let coreIndex = 0;
+        const total = 4;
+        const track = document.getElementById('track');
+        const btns = document.querySelectorAll('.dot-btn');
+        const cap = document.getElementById('caption');
+
+        const logs = [
+            "SYSTEM_OVERVIEW: REAL-TIME TOKEN ANALYTICS",
+            "INSIGHT_ENGINE: DETECTING COST ANOMALIES",
+            "REPOSITORY_MAPPING: TRACKING SOURCE ORIGINS",
+            "PROMPT_LEADERBOARD: RANKING TRANSACTION INTENSITY"
         ];
 
-        function updateCarousel() {
-            track.style.transform = `translateX(-${currentSlide * 100}%)`;
-            
-            // Update dots
-            dots.forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
-            });
-
-            // Update caption
-            caption.style.opacity = 0;
-            setTimeout(() => {
-                caption.textContent = captions[currentSlide];
-                caption.style.opacity = 1;
-            }, 200);
+        function jump(idx) {
+            coreIndex = idx;
+            render();
         }
 
-        function moveSlide(direction) {
-            currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
-            updateCarousel();
+        function render() {
+            track.style.transform = `translateX(-${coreIndex * 100}%)`;
+            btns.forEach((b, i) => b.classList.toggle('active', i === coreIndex));
+            cap.textContent = logs[coreIndex];
         }
 
-        function goToSlide(index) {
-            currentSlide = index;
-            updateCarousel();
-        }
-
-        // Auto-advance
-        let autoAdvance = setInterval(() => moveSlide(1), 5000);
-
-        // Pause auto-advance on hover
-        document.querySelector('.carousel-container').addEventListener('mouseenter', () => {
-            clearInterval(autoAdvance);
-        });
-
-        document.querySelector('.carousel-container').addEventListener('mouseleave', () => {
-            autoAdvance = setInterval(() => moveSlide(1), 5000);
-        });
+        setInterval(() => {
+            coreIndex = (coreIndex + 1) % total;
+            render();
+        }, 5000);
     </script>
 </body>
 </html>
