@@ -145,8 +145,43 @@
             font-size: 1.1rem;
             color: var(--text-muted);
             max-width: 540px;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
+
+        .hero-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .copy-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .copy-pill {
+            background: #000;
+            border: 1px solid var(--border);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .copy-pill:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .copy-pill span { color: var(--accent); }
+        .copy-pill .label { color: var(--text-muted); font-size: 0.7rem; font-family: var(--font-main); }
 
         /* Fake Terminal Window */
         .terminal-window {
@@ -404,9 +439,19 @@
             <p class="hero-p">
                 Stop operating in the dark. <b>codex-spend</b> builds a mission control center for your local OpenAI usage. Instant analytics, automated insights, 100% private.
             </p>
-            <div style="display: flex; gap: 1rem;">
+            <div class="hero-actions">
+                <div class="copy-row">
+                    <div class="copy-pill" onclick="copyCmd('npx codex-spend', this)">
+                        <span>$</span> npx codex-spend
+                        <div class="label">COPY</div>
+                    </div>
+                    <div class="copy-pill" onclick="copyCmd('npm install -g codex-spend', this)">
+                        <span>$</span> npm install -g codex-spend
+                        <div class="label">COPY</div>
+                    </div>
+                </div>
                 <a href="#install" class="cta-btn">
-                    INITIATE_ANALYTICS
+                    EXPLORE_SETUP_FLOW
                 </a>
             </div>
         </div>
@@ -490,11 +535,20 @@
     </footer>
 
     <script>
+        function copyCmd(text, el) {
+            navigator.clipboard.writeText(text);
+            const label = el.querySelector('.label');
+            const original = label.textContent;
+            label.textContent = 'COPIED!';
+            label.style.color = 'var(--accent)';
+            setTimeout(() => {
+                label.textContent = original;
+                label.style.color = 'var(--text-muted)';
+            }, 2000);
+        }
+
         function copyNpx() {
-            navigator.clipboard.writeText('npx codex-spend');
-            const label = document.getElementById('copy-label');
-            label.style.opacity = '1';
-            setTimeout(() => label.style.opacity = '0', 2000);
+            copyCmd('npx codex-spend', document.querySelector('.terminal-window'));
         }
 
         let coreIndex = 0;
