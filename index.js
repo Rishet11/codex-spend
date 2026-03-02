@@ -52,7 +52,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
     const { parseAllSessions } = require('./src/parser');
     const data = await parseAllSessions();
     if (data && data.sessions && data.sessions.length > 0) {
-      console.log('\n \x1b[1mCodex-Spend\x1b[0m - See where your OpenAI Codex tokens go\n');
+      console.log('');
       console.log(' \x1b[38;2;0;113;227m  ____             _             \x1b[0m');
       console.log(' \x1b[38;2;0;113;227m / ___|  ___   __| |  ___ __  __\x1b[0m');
       console.log(' \x1b[38;2;0;113;227m| |     / _ \\ / _` | / _ \\\\ \\/ /\x1b[0m');
