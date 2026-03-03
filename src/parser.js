@@ -47,7 +47,7 @@ function getCodexDir() {
 function getLatestStateDb(overridePath = null) {
   if (overridePath) return overridePath;
   const codexDir = getCodexDir();
-  let latest = 5;
+  let latest = -1;
   try {
     if (fs.existsSync(codexDir)) {
       const files = fs.readdirSync(codexDir);
@@ -58,9 +58,15 @@ function getLatestStateDb(overridePath = null) {
           if (num > latest) latest = num;
         }
       }
+      
+      // Fallback for newer/different structures (e.g. sqlite/codex-dev.db)
+      if (latest === -1) {
+        const altPath = path.join(codexDir, 'sqlite', 'codex-dev.db');
+        if (fs.existsSync(altPath)) return altPath;
+      }
     }
   } catch(e) {}
-  return path.join(codexDir, `state_${latest}.sqlite`);
+  return path.join(codexDir, `state_${latest === -1 ? 0 : latest}.sqlite`);
 }
 
 function q(sql, dbPath) {
@@ -306,20 +312,59 @@ function calculateCost(model, inputTokens, cachedTokens, outputTokens, reasoning
   return (uncached * pricing.input) + (cachedTokens * pricing.cacheRead) + (outputTokens * pricing.output) + ((reasoningTokens || 0) * pricing.reasoningResult);
 }
 
+function getSessionsFromDirectory() {
+  const sessionsDir = path.join(getCodexDir(), 'sessions');
+  const threads = [];
+  if (!fs.existsSync(sessionsDir)) return threads;
+  function scanDir(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          scanDir(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+          // Extract timestamp + UUID from filename: rollout-2026-02-11T22-46-24-UUID.jsonl
+          const match = entry.name.match(/^rollout-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})-(.+)\.jsonl$/);
+          let createdAt = null;
+          let id = entry.name;
+          if (match) {
+            const tsStr = match[1].replace(/T(\d{2})-(\d{2})-(\d{2})$/, 'T$1:$2:$3');
+            createdAt = Math.floor(new Date(tsStr).getTime() / 1000);
+            id = match[2];
+          } else {
+            createdAt = Math.floor(fs.statSync(fullPath).mtimeMs / 1000);
+          }
+          threads.push({ id, rollout_path: fullPath, created_at: createdAt, updated_at: createdAt, model_provider: null, title: null, tokens_used: 0, cwd: null });
+        }
+      }
+    } catch(e) {}
+  }
+  scanDir(sessionsDir);
+  return threads;
+}
+
 async function parseAllSessions(options = {}) {
   const dbPath = getLatestStateDb(options.stateDbPath || getStateDbOverride());
-  
-  if (!fs.existsSync(dbPath)) {
-    return { sessions: [], totals: {} };
-  }
 
-  // Get all threads from sqlite as the base truth
-  const threads = q(`
-    SELECT id, rollout_path, created_at, updated_at, model_provider, title, tokens_used, cwd
-    FROM threads
-    WHERE archived = 0
-    ORDER BY tokens_used DESC
-  `, dbPath);
+  let threads = [];
+  if (fs.existsSync(dbPath)) {
+    try {
+      threads = q(`
+        SELECT id, rollout_path, created_at, updated_at, model_provider, title, tokens_used, cwd
+        FROM threads
+        WHERE archived = 0
+        ORDER BY tokens_used DESC
+      `, dbPath);
+    } catch(e) {
+      // DB exists but has no 'threads' table — newer Codex CLI version
+      // Fall back to scanning ~/.codex/sessions/**/*.jsonl directly
+      threads = getSessionsFromDirectory();
+    }
+  } else {
+    // No DB found — fall back to scanning sessions directory
+    threads = getSessionsFromDirectory();
+  }
 
   const sessions = [];
   
