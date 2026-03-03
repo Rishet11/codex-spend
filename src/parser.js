@@ -145,7 +145,18 @@ function cleanPrompt(text) {
     if (extracted) return extracted;
   }
   
-  return text.trim();
+  const trimmed = text.trim();
+  
+  // Skip AGENTS.md instruction preambles (not real user prompts)
+  if (trimmed.startsWith("# AGENTS.md")) return "(No Prompt)";
+  
+  // Skip environment_context XML blocks
+  if (trimmed.startsWith("<environment_context>")) return "(No Prompt)";
+  
+  // Skip raw INSTRUCTIONS blocks
+  if (trimmed.startsWith("<INSTRUCTIONS>")) return "(No Prompt)";
+  
+  return trimmed;
 }
 
 function normalizeReasoningLevel(level) {
@@ -200,6 +211,10 @@ async function parseSessionStream(filePath) {
   let lastSeenInput = 0;
   let lastSeenOutput = 0;
 
+  // Metadata extracted from session_meta and first user message
+  let sessionCwd = null;
+  let firstUserPrompt = null;
+
   for await (const line of rl) {
     if (!line.trim()) continue;
     let row;
@@ -209,10 +224,20 @@ async function parseSessionStream(filePath) {
       continue;
     }
 
+    // Extract cwd from session_meta (available in all Codex CLI versions)
+    if (row.type === "session_meta" && row.payload) {
+      sessionCwd = row.payload.cwd || null;
+    }
+
     if (row.type === "turn_context" && row.payload?.model) {
       currentModel = row.payload.model;
     }
     
+    // Also extract cwd from turn_context as fallback (in case session_meta is missing)
+    if (row.type === "turn_context" && row.payload?.cwd && !sessionCwd) {
+      sessionCwd = row.payload.cwd;
+    }
+
     if (row.type === "turn_context" && row.payload?.collaboration_mode?.settings?.reasoning_effort) {
       currentReasoningLevel = normalizeReasoningLevel(row.payload.collaboration_mode.settings.reasoning_effort);
     }
@@ -252,6 +277,11 @@ async function parseSessionStream(filePath) {
       const rawPrompt = texts.length > 0 ? texts.map(c => c.text).join('\n') : "";
       pendingPrompt = cleanPrompt(rawPrompt);
       
+      // Capture first user prompt as potential title
+      if (firstUserPrompt === null && pendingPrompt && pendingPrompt !== '(No Prompt)') {
+        firstUserPrompt = pendingPrompt;
+      }
+
       continuations = 0;
       maxRequestInputForPrompt = 0;
       baselineTotalInput = currentTotalInput;
@@ -302,7 +332,7 @@ async function parseSessionStream(filePath) {
     }
   }
 
-  return queries;
+  return { queries, sessionCwd, firstUserPrompt };
 }
 
 function calculateCost(model, inputTokens, cachedTokens, outputTokens, reasoningTokens) {
@@ -344,26 +374,33 @@ function getSessionsFromDirectory() {
   return threads;
 }
 
+function dbHasTable(dbPath, tableName) {
+  try {
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table'", dbPath);
+    return tables.some(t => t.name === tableName);
+  } catch(e) {
+    return false;
+  }
+}
+
 async function parseAllSessions(options = {}) {
   const dbPath = getLatestStateDb(options.stateDbPath || getStateDbOverride());
+  let detectionSource = 'none';
 
   let threads = [];
-  if (fs.existsSync(dbPath)) {
-    try {
-      threads = q(`
-        SELECT id, rollout_path, created_at, updated_at, model_provider, title, tokens_used, cwd
-        FROM threads
-        WHERE archived = 0
-        ORDER BY tokens_used DESC
-      `, dbPath);
-    } catch(e) {
-      // DB exists but has no 'threads' table — newer Codex CLI version
-      // Fall back to scanning ~/.codex/sessions/**/*.jsonl directly
-      threads = getSessionsFromDirectory();
-    }
+  if (fs.existsSync(dbPath) && dbHasTable(dbPath, 'threads')) {
+    // Primary path: DB with threads table (standard Codex CLI)
+    threads = q(`
+      SELECT id, rollout_path, created_at, updated_at, model_provider, title, tokens_used, cwd
+      FROM threads
+      WHERE archived = 0
+      ORDER BY tokens_used DESC
+    `, dbPath);
+    detectionSource = 'sqlite';
   } else {
-    // No DB found — fall back to scanning sessions directory
+    // Fallback: scan ~/.codex/sessions/**/*.jsonl directly
     threads = getSessionsFromDirectory();
+    detectionSource = threads.length > 0 ? 'directory' : 'none';
   }
 
   const sessions = [];
@@ -378,8 +415,12 @@ async function parseAllSessions(options = {}) {
   for (let i = 0; i < validThreads.length; i += 10) {
     const chunk = validThreads.slice(i, i + 10);
     await Promise.all(chunk.map(async (t) => {
-      const queries = await parseSessionStream(t.rollout_path);
-    
+      const result = await parseSessionStream(t.rollout_path);
+      const queries = result.queries;
+
+      // Enrich directory-scanned threads with metadata extracted from JSONL
+      if (!t.cwd && result.sessionCwd) t.cwd = result.sessionCwd;
+      if (!t.title && result.firstUserPrompt) t.title = result.firstUserPrompt;
 
     const totalCacheRead = queries.reduce((sum, q) => sum + (q.cachedTokens || 0), 0);
     const totalInput = queries.reduce((sum, q) => sum + (q.inputTokens || 0), 0);
