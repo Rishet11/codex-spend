@@ -6,6 +6,7 @@ const { spawnSync } = require('child_process');
 
 const MODEL_PRICING = {
   // Codex Primary Models (Mapped to GPT-4o equivalent API costs)
+  'gpt-5.5': { input: 5.00 / 1e6, cacheRead: 0.50 / 1e6, output: 30.00 / 1e6, reasoningResult: 30.00 / 1e6 },
   'gpt-5.3-codex': { input: 1.75 / 1e6, cacheRead: 0.175 / 1e6, output: 14.00 / 1e6, reasoningResult: 14.00 / 1e6 },
   'gpt-5.2-codex': { input: 1.75 / 1e6, cacheRead: 0.175 / 1e6, output: 14.00 / 1e6, reasoningResult: 14.00 / 1e6 },
   'gpt-5.1-codex-max': { input: 1.25 / 1e6, cacheRead: 0.125 / 1e6, output: 10.00 / 1e6, reasoningResult: 10.00 / 1e6 },
@@ -18,6 +19,7 @@ const MODEL_PRICING = {
 // Fallback pricing for unknown codex models. Indicates pricing is unavailable.
 const DEFAULT_PRICING = { input: 0, cacheRead: 0, output: 0, reasoningResult: 0, unknown: true };
 const DEFAULT_CONTEXT_LIMITS = {
+  'gpt-5.5': 1050000,
   'gpt-5.3-codex': 128000,
   'gpt-5.2-codex': 128000,
   'gpt-5.1-codex-max': 128000,
@@ -31,6 +33,7 @@ function getPricing(model) {
   if (!model) return DEFAULT_PRICING;
   const m = model.toLowerCase();
   
+  if (m.includes('5.5')) return MODEL_PRICING['gpt-5.5'];
   if (m.includes('5.3')) return MODEL_PRICING['gpt-5.3-codex'];
   if (m.includes('codex-mini')) return MODEL_PRICING['gpt-5.1-codex-mini'];
   if (m.includes('codex-max')) return MODEL_PRICING['gpt-5.1-codex-max'];

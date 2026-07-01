@@ -15,6 +15,7 @@ Options:
   --port <port>   Port to run dashboard on (default: 4321)
   --state-db <path>  Override Codex state DB path (advanced)
   --no-open       Don't auto-open browser
+  --plan          Use if you have a flat subscription plan
   --help, -h      Show this help message
 
 Examples:
@@ -30,6 +31,7 @@ const port = portIndex !== -1 ? parseInt(args[portIndex + 1], 10) : 4321;
 const stateDbIndex = args.indexOf('--state-db');
 const stateDbPath = stateDbIndex !== -1 ? args[stateDbIndex + 1] : null;
 const noOpen = args.includes('--no-open');
+const isPlan = args.includes('--plan');
 
 if (isNaN(port)) {
   console.error('Error: --port must be a number');
@@ -77,7 +79,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
         'Model'.padEnd(colModel) + ' | ' +
         'Reasoning'.padEnd(colReasoning) + ' | ' +
         'Tokens'.padEnd(colTokens) + ' | ' +
-        'Cost'.padStart(colCost);
+        (isPlan ? 'API Value' : 'Cost').padStart(colCost);
       
       console.log(header);
       console.log('-'.repeat(header.length));
@@ -124,7 +126,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
       const cRsn = `\x1b[38;2;168;85;247m${rsnM}M rsn\x1b[0m`;
       const cOut = `\x1b[38;2;20;184;166m${outM}M out\x1b[0m`;
 
-      console.log(`Totals: ${(t.totalTokens / 1_000_000).toFixed(1)}M Tokens (${cIn} / ${cCache} / ${cRsn} / ${cOut}) | Cache Hit: ${((t.cacheHitRate || 0) * 100).toFixed(0)}% | Est. Cost: $${(t.totalCost || 0).toFixed(2)}`);
+      console.log(`Totals: ${(t.totalTokens / 1_000_000).toFixed(1)}M Tokens (${cIn} / ${cCache} / ${cRsn} / ${cOut}) | Cache Hit: ${((t.cacheHitRate || 0) * 100).toFixed(0)}% | ${isPlan ? 'API Eq. Value' : 'Est. Cost'}: $${(t.totalCost || 0).toFixed(2)}`);
       if (t.hasUnknownPricing) {
         console.log('⚠️ WARNING: Some models have unknown pricing.');
       }
