@@ -10,6 +10,15 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/codex-spend" target="_blank">
+    <img src="https://img.shields.io/npm/v/codex-spend.svg?style=flat-square" alt="npm version" />
+  </a>
+  <a href="https://github.com/Rishet11/codex-spend" target="_blank">
+    <img src="https://img.shields.io/github/stars/Rishet11/codex-spend.svg?style=flat-square" alt="GitHub stars" />
+  </a>
+</p>
+
 **See where your OpenAI Codex tokens go. One command.**
 
 `codex-spend` is a local dashboard for analyzing OpenAI Codex CLI usage. It parses your local Codex session/state data and visualizes token usage, estimated cost, and actionable patterns to help reduce spend.
@@ -24,7 +33,7 @@
 - **💡 Actionable Insights:** Detects "One-Word Reply" traps, "Tab Hoarder" habits, context window overflows, reasoning ROI, and more.
 - **📂 Project Breakdown:** See exactly which repositories or directories consume the most tokens.
 - **💰 Accurate Cost Estimates:** Includes prompt caching discounts and reasoning tokens. Covers all current Codex models.
-- **📋 Subscription Plan Mode:** If you pay a flat monthly fee instead of per-token, run with `--plan` to reframe costs as **API Equivalent Value** and see a rolling 3-hour and 7-day usage estimate.
+- **📋 Subscription Plan Mode:** If you pay a flat monthly fee instead of per-token, run with `--plan` to reframe costs as **API Equivalent Value** and see a rolling 5-hour and 7-day usage estimate.
 
 ## 🚀 Quick Start
 
@@ -54,7 +63,7 @@ npx codex-spend --plan
 
 This will:
 - Relabel "Est. Cost" → **"API Equivalent Value"** so you see the value you extracted, not a scary cost number
-- Show your estimated token usage in the **last 3 hours** and **last 7 days** vs. your plan limits (160 msgs / 3hrs, 3,000 thinking msgs / week on Plus)
+- Show your estimated token usage in the **last 5 hours** and **last 7 days** vs. your plan limits (160 msgs / 5hrs, 3,000 thinking msgs / week on Plus)
 - Link directly to your official OpenAI usage analytics page
 
 ## 🛠️ How it Works
