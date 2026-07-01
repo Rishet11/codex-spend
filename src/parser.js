@@ -5,14 +5,16 @@ const readline = require('readline');
 const { spawnSync } = require('child_process');
 
 const MODEL_PRICING = {
-  // Codex Primary Models (Mapped to GPT-4o equivalent API costs)
+  // Codex Primary Models
   'gpt-5.5': { input: 5.00 / 1e6, cacheRead: 0.50 / 1e6, output: 30.00 / 1e6, reasoningResult: 30.00 / 1e6 },
+  'gpt-5.4': { input: 2.50 / 1e6, cacheRead: 0.25 / 1e6, output: 15.00 / 1e6, reasoningResult: 15.00 / 1e6 },
   'gpt-5.3-codex': { input: 1.75 / 1e6, cacheRead: 0.175 / 1e6, output: 14.00 / 1e6, reasoningResult: 14.00 / 1e6 },
   'gpt-5.2-codex': { input: 1.75 / 1e6, cacheRead: 0.175 / 1e6, output: 14.00 / 1e6, reasoningResult: 14.00 / 1e6 },
   'gpt-5.1-codex-max': { input: 1.25 / 1e6, cacheRead: 0.125 / 1e6, output: 10.00 / 1e6, reasoningResult: 10.00 / 1e6 },
   'gpt-5.2': { input: 1.75 / 1e6, cacheRead: 0.175 / 1e6, output: 14.00 / 1e6, reasoningResult: 14.00 / 1e6 },
-  
-  // Codex Mini Model (Mapped to GPT-4o-Mini equivalent API costs)
+
+  // Codex Mini Models
+  'gpt-5.4-mini': { input: 0.75 / 1e6, cacheRead: 0.075 / 1e6, output: 4.50 / 1e6, reasoningResult: 4.50 / 1e6 },
   'gpt-5.1-codex-mini': { input: 0.25 / 1e6, cacheRead: 0.025 / 1e6, output: 2.00 / 1e6, reasoningResult: 2.00 / 1e6 },
 };
 
@@ -20,9 +22,11 @@ const MODEL_PRICING = {
 const DEFAULT_PRICING = { input: 0, cacheRead: 0, output: 0, reasoningResult: 0, unknown: true };
 const DEFAULT_CONTEXT_LIMITS = {
   'gpt-5.5': 1050000,
+  'gpt-5.4': 128000,
   'gpt-5.3-codex': 128000,
   'gpt-5.2-codex': 128000,
   'gpt-5.1-codex-max': 128000,
+  'gpt-5.4-mini': 128000,
   'gpt-5.1-codex-mini': 128000,
   'gpt-5.2': 128000,
 };
@@ -34,6 +38,8 @@ function getPricing(model) {
   const m = model.toLowerCase();
   
   if (m.includes('5.5')) return MODEL_PRICING['gpt-5.5'];
+  if (m.includes('5.4-mini') || (m.includes('5.4') && m.includes('mini'))) return MODEL_PRICING['gpt-5.4-mini'];
+  if (m.includes('5.4')) return MODEL_PRICING['gpt-5.4'];
   if (m.includes('5.3')) return MODEL_PRICING['gpt-5.3-codex'];
   if (m.includes('codex-mini')) return MODEL_PRICING['gpt-5.1-codex-mini'];
   if (m.includes('codex-max')) return MODEL_PRICING['gpt-5.1-codex-max'];
@@ -706,7 +712,21 @@ async function parseAllSessions(options = {}) {
   }
 
   totals.avgTokensPerSession = totals.totalSessions > 0 ? Math.round(totals.totalTokens / totals.totalSessions) : 0;
-  
+
+  // Rolling window token usage (for subscription plan users)
+  const nowMs = Date.now();
+  const threeHoursMs = 3 * 60 * 60 * 1000;
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  totals.tokensLast3Hours = sessions
+    .filter(s => s.createdAt && (nowMs - s.createdAt) <= threeHoursMs)
+    .reduce((sum, s) => sum + s.totalTokens, 0);
+  totals.tokensLast7Days = sessions
+    .filter(s => s.createdAt && (nowMs - s.createdAt) <= sevenDaysMs)
+    .reduce((sum, s) => sum + s.totalTokens, 0);
+  // Rough message estimate: agentic coding tasks avg ~20k tokens per "message" (turn)
+  totals.estimatedMessagesLast3Hours = Math.round(totals.tokensLast3Hours / 20000);
+  totals.estimatedMessagesLast7Days = Math.round(totals.tokensLast7Days / 20000);
+
   // Expose cache savings estimation for the UI
   totals.cacheSavings = sessions.reduce((sum, s) => {
     return sum + (s.queries || []).reduce((qSum, q) => {
@@ -798,17 +818,33 @@ function generateInsights(sessions, allPrompts, totals) {
   // 2. Output Optimization (The Stop Yapping Rule)
   // Replaces the old 'marathon session' to focus on high-output rewrites.
   if (sessions.length > 0) {
-    const heavyWriters = sessions.filter(s => s.queryCount > 0 && (s.outputTokens / s.queryCount) > 2500);
+    // Only count queries that actually produced output tokens (exclude planning/reasoning-only turns)
+    const heavyWriters = sessions.filter(s => {
+      const outputQueries = (s.queries || []).filter(q => (q.outputTokens || 0) > 0);
+      return outputQueries.length > 0 && (s.outputTokens / outputQueries.length) > 2500;
+    });
     if (heavyWriters.length > 0) {
-      const worst = heavyWriters.sort((a,b) => (b.outputTokens/b.queryCount) - (a.outputTokens/a.queryCount))[0];
-      const avgOutput = Math.round(worst.outputTokens / worst.queryCount);
-      const estCostPerTurn = (worst.cost / worst.queryCount);
+      const worst = heavyWriters.sort((a, b) => {
+        const aOut = (a.queries || []).filter(q => q.outputTokens > 0);
+        const bOut = (b.queries || []).filter(q => q.outputTokens > 0);
+        const aAvg = aOut.length > 0 ? a.outputTokens / aOut.length : 0;
+        const bAvg = bOut.length > 0 ? b.outputTokens / bOut.length : 0;
+        return bAvg - aAvg;
+      })[0];
+      const outputQueries = (worst.queries || []).filter(q => (q.outputTokens || 0) > 0);
+      const avgOutput = outputQueries.length > 0 ? Math.round(worst.outputTokens / outputQueries.length) : 0;
+      // Compute cost only from queries that actually have known pricing and output tokens
+      const pricedOutputCosts = outputQueries.map(q => calculateCost(q.model || worst.model, 0, 0, q.outputTokens || 0, 0)).filter(c => c > 0);
+      const estCostPerTurn = pricedOutputCosts.length > 0
+        ? pricedOutputCosts.reduce((a, b) => a + b, 0) / pricedOutputCosts.length
+        : null;
+      const costStr = estCostPerTurn !== null ? `~$${estCostPerTurn.toFixed(3)}` : 'unknown cost';
       insights.push({
         id: 'output-optimization',
         type: 'warning',
-        title: `Codex is rewriting entire files (${fmt(avgOutput)} output tokens / ~$${estCostPerTurn.toFixed(2)} per turn)`,
-        description: `In the session "${worst.firstPrompt.substring(0, 50)}...", Codex averaged ${fmt(avgOutput)} output tokens every time it replied. This usually means it is rewriting massive files from scratch just to change one or two lines, which drains your budget quickly.`,
-        action: `Add a system rule like: "Only return the functions you changed, do not rewrite the entire file." This keeps the output tokens strictly focused on edits.`,
+        title: `Codex is rewriting entire files (avg ${fmt(avgOutput)} output tokens/reply, ${costStr} per reply)`,
+        description: `In the session "${worst.firstPrompt.substring(0, 50)}...", every AI reply that produced output averaged ${fmt(avgOutput)} output tokens. This usually means Codex is rewriting massive files from scratch just to change a few lines, which drains your budget quickly.`,
+        action: `Add a system rule like: "Only return the functions you changed, do not rewrite the entire file." This keeps output strictly focused on edits.`,
       });
     }
   }

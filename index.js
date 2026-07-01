@@ -61,7 +61,7 @@ const server = app.listen(port, '127.0.0.1', async () => {
       console.log(' \x1b[38;2;0;113;227m| |___ | (_) | (_| ||  __/ >  < \x1b[0m');
       console.log(' \x1b[38;2;0;113;227m \\____| \\___/ \\__,_| \\___|/_/\\_\\\x1b[0m   \x1b[38;2;50;173;230m- spend\x1b[0m');
       console.log('');
-      console.log(' \x1b[37mSee where your OpenAI Codex tokens go. One command.\x1b[0m');
+      console.log(' \x1b[37mTrack your OpenAI Codex token usage and cost.\x1b[0m');
       console.log('');
       
       const colTitle = 28;
@@ -128,10 +128,27 @@ const server = app.listen(port, '127.0.0.1', async () => {
 
       console.log(`Totals: ${(t.totalTokens / 1_000_000).toFixed(1)}M Tokens (${cIn} / ${cCache} / ${cRsn} / ${cOut}) | Cache Hit: ${((t.cacheHitRate || 0) * 100).toFixed(0)}% | ${isPlan ? 'API Eq. Value' : 'Est. Cost'}: $${(t.totalCost || 0).toFixed(2)}`);
       if (t.hasUnknownPricing) {
-        console.log('⚠️ WARNING: Some models have unknown pricing.');
+        console.log('⚠️  WARNING: Some models have unknown pricing. Sessions using unknown models show $0.00.');
       }
       console.log(headerSep);
-      console.log('');
+
+      // Plan usage summary — shown only when --plan is passed
+      if (isPlan) {
+        const fmt3h = (n) => n >= 1_000_000 ? (n/1_000_000).toFixed(2) + 'M' : (n >= 1000 ? (n/1000).toFixed(1) + 'K' : n.toString());
+        const msgs3h = t.estimatedMessagesLast3Hours || 0;
+        const msgs7d = t.estimatedMessagesLast7Days || 0;
+        const remaining3h = Math.max(0, 160 - msgs3h);
+        const remaining7d = Math.max(0, 3000 - msgs7d);
+        console.log('');
+        console.log(' \x1b[38;2;99;102;241m── Subscription Usage Estimate (ChatGPT Plus) ──────────────────────\x1b[0m');
+        console.log(` \x1b[37m Last 3 hours:  \x1b[0m\x1b[33m${fmt3h(t.tokensLast3Hours || 0)} tokens\x1b[0m  (~${msgs3h} msgs used / ~${remaining3h} remaining of 160)`);
+        console.log(` \x1b[37m Last 7 days:   \x1b[0m\x1b[33m${fmt3h(t.tokensLast7Days || 0)} tokens\x1b[0m  (~${msgs7d} msgs used / ~${remaining7d} remaining of 3,000 thinking msgs)`);
+        console.log(` \x1b[37m Note: These are rough estimates based on ~20K tokens/message for agentic tasks.\x1b[0m`);
+        console.log(` \x1b[37m Check exact usage: \x1b[0m\x1b[36mhttps://chatgpt.com/codex/cloud/settings/analytics\x1b[0m`);
+        console.log('');
+      } else {
+        console.log('');
+      }
     }
   } catch (err) {
     // Ignore parsing errors on boot, the UI will surface them
