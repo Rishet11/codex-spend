@@ -921,6 +921,21 @@
   <div class="stats-more-wrap">
     <button id="statsMoreBtn" class="stats-more-btn" type="button" onclick="toggleStatsExpanded()" style="display:none"></button>
   </div>
+  <!-- Plan Usage -->
+  <div id="planUsageSection" class="insights-section" style="display:none">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(88,86,214,0.1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="section-title">Subscription Usage (Codex)</div>
+    </div>
+    <div class="sessions-card" style="padding: 24px;">
+      <div id="planBars"></div>
+      <div style="margin-top: 16px; font-size: 13px; color: var(--text-tertiary);">
+        <a href="https://chatgpt.com/codex/cloud/settings/analytics" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 500;">↗ View exact usage on OpenAI</a>
+      </div>
+    </div>
+  </div>
   <!-- Insights -->
   <div id="insightsSection" class="insights-section" style="display:none">
     <div class="section-header">
@@ -1230,19 +1245,63 @@ function render() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   
+  if (DATA.isPlan) {
+    const heroSubtitle = document.querySelector('.hero-subtitle');
+    if (heroSubtitle) heroSubtitle.textContent = 'See token usage, API value, and efficiency at a glance.';
+  }
+  
   if (DATA.totals && DATA.totals.hasUnknownPricing) {
     document.getElementById('pricingWarning').style.display = 'flex';
+    if (DATA.isPlan) {
+        document.getElementById('pricingWarning').innerHTML = '⚠️ Some models have unknown pricing. Estimated API values may be lower than actual.';
+    }
   } else {
     document.getElementById('pricingWarning').style.display = 'none';
   }
   
   renderStats();
+  renderPlanUsage();
   renderInsights();
   renderDailyChart();
   renderModelChart();
   renderProjectBreakdown();
   renderPromptLeaderboards();
   renderSessions();
+}
+function renderPlanUsage() {
+  const section = document.getElementById('planUsageSection');
+  if (!DATA.isPlan) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+  if (section) section.style.display = 'block';
+  
+  const t = DATA.totals;
+  const msgs5h = t.estimatedMessagesLast5Hours || 0;
+  const msgs7d = t.estimatedMessagesLast7Days || 0;
+  
+  const pct5h = Math.min(100, (msgs5h / 160) * 100);
+  const pct7d = Math.min(100, (msgs7d / 3000) * 100);
+  
+  let html = '';
+  const bar = (label, used, limit, pct, color) => `
+    <div style="margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 600;">
+        <span>${label}</span>
+        <span>~${fmtFull(used)} / ${fmtFull(limit)} msgs</span>
+      </div>
+      <div style="height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;">
+        <div style="height: 100%; width: ${pct}%; background: ${color}; border-radius: 4px;"></div>
+      </div>
+      ${pct >= 100 ? `<div style="color: var(--rose); font-size: 12px; margin-top: 6px; font-weight: 500;">⚠️ You've exceeded the ${label.toLowerCase()} cap. OpenAI may auto-downgrade your models.</div>` : ''}
+    </div>
+  `;
+  
+  html += bar('Standard messages (5hr window)', msgs5h, 160, pct5h, 'var(--blue)');
+  html += bar('Thinking messages (7-day window)', msgs7d, 3000, pct7d, 'var(--purple)');
+  
+  const planBars = document.getElementById('planBars');
+  if (planBars) planBars.innerHTML = html;
 }
 function renderStats() {
   const t = DATA.totals;
@@ -1253,11 +1312,11 @@ function renderStats() {
   const uncachedInput = Math.max(0, (t.totalInputTokens || 0) - cacheTotal);
   const reasoning = t.totalReasoningTokens || 0;
   const avgTokensPerMsg = t.totalQueries > 0 ? Math.round((t.totalTokens || 0) / t.totalQueries) : 0;
-  const cards = [
+  let cards = [
     { label: 'Total Usage', value: fmt(t.totalTokens || 0), sub: `${fmt(uncachedInput)} in · ${fmt(cacheTotal)} cache · ${fmt(reasoning)} rsn · ${fmt(t.totalOutputTokens || 0)} out`,
       tip: '<div style="margin-bottom:6px">The absolute total volume of tokens processed.</div><div style="font-size:12px;opacity:0.7"><b>Math:</b> Uncached Input + Cached Input + Reasoning + Output.</div>' },
-    { label: 'Est. Cost', value: '$' + (t.totalCost || 0).toFixed(2), sub: `Based on API Codex prices`,
-      tip: '<div style="margin-bottom:6px">The estimated dollar cost of your local usage.</div><div style="font-size:12px;opacity:0.7"><b>Math:</b> Calculated per message by multiplying tokens by their specific model pricing tier.</div>' },
+    { label: DATA.isPlan ? 'API Value' : 'Est. Cost', value: '$' + (t.totalCost || 0).toFixed(2), sub: `Based on API Codex prices`,
+      tip: DATA.isPlan ? '<div style="margin-bottom:6px">The estimated dollar value of your local usage if you paid per API token.</div><div style="font-size:12px;opacity:0.7"><b>Math:</b> Calculated per message by multiplying tokens by their specific model pricing tier.</div>' : '<div style="margin-bottom:6px">The estimated dollar cost of your local usage.</div><div style="font-size:12px;opacity:0.7"><b>Math:</b> Calculated per message by multiplying tokens by their specific model pricing tier.</div>' },
     { label: 'Conversations', value: fmtFull(t.totalSessions), sub: `~${fmt(t.avgTokensPerSession)} tokens avg`,
       tip: '<div style="margin-bottom:6px">A continuous thread with Codex.</div><div style="font-size:12px;opacity:0.7"><b>Context:</b> The high average size proves how much files and history your IDE bundles as the conversation builds up.</div>' },
     { label: 'Messages Sent', value: fmtFull(t.totalQueries), sub: `~${fmt(avgTokensPerMsg)} tokens per message`,
@@ -1273,6 +1332,9 @@ function renderStats() {
     { label: 'Week-over-week', value: (t.weekOverWeek || 'N/A'), sub: `Cost vs previous 7 days`,
       tip: '<div style="margin-bottom:6px">Trajectory of your token spending.</div><div style="font-size:12px;opacity:0.7"><b>Math:</b> ((Last 7 Days Cost - Prev 7 Days Cost) ÷ Prev 7 Days) × 100.</div>' },
   ];
+  if (DATA.isPlan) {
+    cards = cards.filter(c => c.label !== 'Projected Monthly');
+  }
   const primaryCards = cards.slice(0, 6);
   const secondaryCards = cards.slice(6);
   const visibleCards = statsExpanded ? cards : primaryCards;
@@ -1559,6 +1621,10 @@ function renderPromptRows(prompts, targetId, rankingLabel) {
   }).join('');
 }
 function renderPromptLeaderboards() {
+  if (DATA.isPlan) {
+    document.getElementById('leaderboardCostBtn').textContent = 'By API Value';
+    document.getElementById('topPromptsCostCard').setAttribute('title', 'Top 20 individual prompt turns ranked by estimated API value.');
+  }
   const byCost = DATA.topPromptsByCost || [];
   const byTokens = DATA.topPromptsByTokens || DATA.topPrompts || [];
   renderPromptRows(byCost, 'topPromptsCostList', 'cost');

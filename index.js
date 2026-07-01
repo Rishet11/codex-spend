@@ -45,7 +45,7 @@ if (stateDbPath) {
   process.env.CODEX_SPEND_STATE_DB = stateDbPath;
 }
 
-const app = createServer();
+const app = createServer({ isPlan });
 
 const server = app.listen(port, '127.0.0.1', async () => {
   const url = `http://localhost:${port}`;
@@ -135,15 +135,15 @@ const server = app.listen(port, '127.0.0.1', async () => {
       // Plan usage summary — shown only when --plan is passed
       if (isPlan) {
         const fmt3h = (n) => n >= 1_000_000 ? (n/1_000_000).toFixed(2) + 'M' : (n >= 1000 ? (n/1000).toFixed(1) + 'K' : n.toString());
-        const msgs3h = t.estimatedMessagesLast3Hours || 0;
+        const msgs5h = t.estimatedMessagesLast5Hours || 0;
         const msgs7d = t.estimatedMessagesLast7Days || 0;
-        const remaining3h = Math.max(0, 160 - msgs3h);
+        const remaining5h = Math.max(0, 160 - msgs5h);
         const remaining7d = Math.max(0, 3000 - msgs7d);
         console.log('');
-        console.log(' \x1b[38;2;99;102;241m── Subscription Usage Estimate (ChatGPT Plus) ──────────────────────\x1b[0m');
-        console.log(` \x1b[37m Last 3 hours:  \x1b[0m\x1b[33m${fmt3h(t.tokensLast3Hours || 0)} tokens\x1b[0m  (~${msgs3h} msgs used / ~${remaining3h} remaining of 160)`);
+        console.log(' \x1b[38;2;99;102;241m── Subscription Usage Estimate (Codex) ──────────────────────\x1b[0m');
+        console.log(` \x1b[37m Last 5 hours:  \x1b[0m\x1b[33m${fmt3h(t.tokensLast5Hours || 0)} tokens\x1b[0m  (~${msgs5h} msgs used / ~${remaining5h} remaining of 160)`);
         console.log(` \x1b[37m Last 7 days:   \x1b[0m\x1b[33m${fmt3h(t.tokensLast7Days || 0)} tokens\x1b[0m  (~${msgs7d} msgs used / ~${remaining7d} remaining of 3,000 thinking msgs)`);
-        console.log(` \x1b[37m Note: These are rough estimates based on ~20K tokens/message for agentic tasks.\x1b[0m`);
+        console.log(` \x1b[37m Note: Estimates based on your average of ~${t.avgTokensPerQuery || 20000} tokens/message.\x1b[0m`);
         console.log(` \x1b[37m Check exact usage: \x1b[0m\x1b[36mhttps://chatgpt.com/codex/cloud/settings/analytics\x1b[0m`);
         console.log('');
       } else {

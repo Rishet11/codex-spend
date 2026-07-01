@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 
-function createServer() {
+function createServer({ isPlan = false } = {}) {
   const app = express();
 
   // Cache parsed data
@@ -15,7 +15,8 @@ function createServer() {
       // Strip out raw queries to prevent massive frontend JSON payload
       const safeData = {
         ...cachedData,
-        sessions: cachedData.sessions.map(s => ({ ...s, queries: [] }))
+        sessions: cachedData.sessions.map(s => ({ ...s, queries: [] })),
+        isPlan
       };
       res.json(safeData);
     } catch (err) {

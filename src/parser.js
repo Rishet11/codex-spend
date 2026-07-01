@@ -713,19 +713,31 @@ async function parseAllSessions(options = {}) {
 
   totals.avgTokensPerSession = totals.totalSessions > 0 ? Math.round(totals.totalTokens / totals.totalSessions) : 0;
 
+  // Calculate average tokens per query across all queries
+  let allQueriesCount = 0;
+  sessions.forEach(s => {
+    if (s.queries) allQueriesCount += s.queries.length;
+  });
+  totals.avgTokensPerQuery = allQueriesCount > 0 ? Math.round(totals.totalTokens / allQueriesCount) : 20000;
+
   // Rolling window token usage (for subscription plan users)
   const nowMs = Date.now();
-  const threeHoursMs = 3 * 60 * 60 * 1000;
+  const fiveHoursMs = 5 * 60 * 60 * 1000;
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-  totals.tokensLast3Hours = sessions
-    .filter(s => s.createdAt && (nowMs - s.createdAt) <= threeHoursMs)
+  
+  // Use updatedAt to calculate when tokens were actually consumed, convert sqlite seconds to ms if needed
+  const getTs = (ts) => ts ? (ts < 1e11 ? ts * 1000 : ts) : 0;
+
+  totals.tokensLast5Hours = sessions
+    .filter(s => getTs(s.updatedAt || s.createdAt) > 0 && (nowMs - getTs(s.updatedAt || s.createdAt)) <= fiveHoursMs)
     .reduce((sum, s) => sum + s.totalTokens, 0);
   totals.tokensLast7Days = sessions
-    .filter(s => s.createdAt && (nowMs - s.createdAt) <= sevenDaysMs)
+    .filter(s => getTs(s.updatedAt || s.createdAt) > 0 && (nowMs - getTs(s.updatedAt || s.createdAt)) <= sevenDaysMs)
     .reduce((sum, s) => sum + s.totalTokens, 0);
-  // Rough message estimate: agentic coding tasks avg ~20k tokens per "message" (turn)
-  totals.estimatedMessagesLast3Hours = Math.round(totals.tokensLast3Hours / 20000);
-  totals.estimatedMessagesLast7Days = Math.round(totals.tokensLast7Days / 20000);
+
+  // Message estimate based on the real average per turn
+  totals.estimatedMessagesLast5Hours = Math.round(totals.tokensLast5Hours / totals.avgTokensPerQuery);
+  totals.estimatedMessagesLast7Days = Math.round(totals.tokensLast7Days / totals.avgTokensPerQuery);
 
   // Expose cache savings estimation for the UI
   totals.cacheSavings = sessions.reduce((sum, s) => {
